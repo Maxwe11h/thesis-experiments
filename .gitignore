@@ -1,0 +1,30 @@
+# OS
+.DS_Store
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+*.egg
+dist/
+build/
+.eggs/
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# IDE
+.vscode/
+.idea/
+*.code-workspace
+
+# Experiment results (large, generated)
+results/
+
+# Planning notes (personal)
+.planning/
+
+# BLADE venvs created by subprocess isolation
+BLADE/iohblade/problems/venvs/
