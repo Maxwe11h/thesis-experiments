@@ -1,7 +1,21 @@
 """Feedback formatters for different experimental conditions."""
 
+FEATURE_DESCRIPTIONS = {
+    "avg_nearest_neighbor_distance": "How spread out the evaluated points are from each other",
+    "dispersion": "How well the evaluated points cover the search domain",
+    "avg_exploration_pct": "Percentage of search effort spent exploring vs exploiting",
+    "avg_distance_to_best": "How far each evaluation is from the current best solution",
+    "intensification_ratio": "How often the algorithm samples near the best-so-far solution",
+    "avg_exploitation_pct": "Percentage of search effort spent exploiting vs exploring",
+    "average_convergence_rate": "Rate at which the best-so-far fitness error decreases per step",
+    "avg_improvement": "Average size of improvement when a new best solution is found",
+    "success_rate": "How often an evaluation improves on the best-so-far solution",
+    "longest_no_improvement_streak": "Longest run of consecutive evaluations with no improvement",
+    "last_improvement_fraction": "How much of the budget has passed since the last improvement",
+}
 
-def vanilla_feedback(name, auc_mean, auc_std, metrics):
+
+def vanilla_feedback(name, auc_mean, auc_std, _metrics):
     """AOCC-only feedback (matches existing LLaMEA format)."""
     return (
         f"The algorithm {name} got an average Area over the convergence curve "
@@ -10,28 +24,19 @@ def vanilla_feedback(name, auc_mean, auc_std, metrics):
     )
 
 
-def behavioral_feedback(name, auc_mean, auc_std, metrics):
-    """AOCC + all 11 behavioral metrics."""
-    lines = [vanilla_feedback(name, auc_mean, auc_std, metrics)]
+def make_single_feature_feedback(feature_name):
+    """Factory: returns a feedback function that reports AOCC + one behavioral metric."""
+    description = FEATURE_DESCRIPTIONS[feature_name]
 
-    lines.append("\nBehavioral profile:")
-    lines.append("  Exploration & diversity:")
-    lines.append(f"    avg_nearest_neighbor_distance: {metrics['avg_nearest_neighbor_distance']:.4f}")
-    lines.append(f"    dispersion: {metrics['dispersion']:.4f}")
-    lines.append(f"    avg_exploration_pct: {metrics['avg_exploration_pct']:.4f}")
+    def feedback_fn(name, auc_mean, auc_std, metrics):
+        base = vanilla_feedback(name, auc_mean, auc_std, metrics)
+        value = metrics.get(feature_name)
+        if value is None:
+            return base
+        return (
+            f"{base}\n"
+            f"Behavioral metric — {feature_name}: {value:.4f}\n"
+            f"  ({description})"
+        )
 
-    lines.append("  Exploitation:")
-    lines.append(f"    avg_distance_to_best: {metrics['avg_distance_to_best']:.4f}")
-    lines.append(f"    intensification_ratio: {metrics['intensification_ratio']:.4f}")
-    lines.append(f"    avg_exploitation_pct: {metrics['avg_exploitation_pct']:.4f}")
-
-    lines.append("  Convergence:")
-    lines.append(f"    average_convergence_rate: {metrics['average_convergence_rate']:.4f}")
-    lines.append(f"    avg_improvement: {metrics['avg_improvement']:.4f}")
-    lines.append(f"    success_rate: {metrics['success_rate']:.4f}")
-
-    lines.append("  Stagnation:")
-    lines.append(f"    longest_no_improvement_streak: {metrics['longest_no_improvement_streak']}")
-    lines.append(f"    last_improvement_fraction: {metrics['last_improvement_fraction']:.4f}")
-
-    return "\n".join(lines)
+    return feedback_fn
