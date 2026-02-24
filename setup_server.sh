@@ -44,8 +44,9 @@ pip install --no-deps -e ./BLADE
 
 # Install only the runtime deps we actually need
 pip install \
+    cloudpickle \
     numpy \
-    pandas \
+    "pandas>=2.2.3,<3" \
     scipy \
     scikit-learn \
     ioh \
@@ -56,8 +57,8 @@ pip install \
     tqdm \
     lizard \
     networkx \
-    xgboost \
-    openai \
+    "xgboost>=2.1.1,<3" \
+    "openai>=1.99.1,<2" \
     virtualenv
 
 # --- Create results and logs directories ---
