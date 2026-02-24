@@ -21,6 +21,7 @@ from .config import (
     N_OFFSPRING,
     LLAMEA_BUDGET,
     OLLAMA_MODEL,
+    OLLAMA_PORT,
     BEHAVIORAL_FEATURES,
 )
 from .feedback import vanilla_feedback, make_single_feature_feedback
@@ -48,7 +49,7 @@ def make_problem(make_feedback, use_worker_pool=True):
 
 def make_method(name):
     """Create a BLADE LLaMEA method with thesis config."""
-    llm = Ollama_LLM(model=OLLAMA_MODEL)
+    llm = Ollama_LLM(model=OLLAMA_MODEL, port=OLLAMA_PORT)
     return LLaMEA(
         llm=llm,
         budget=LLAMEA_BUDGET,
