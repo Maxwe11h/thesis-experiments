@@ -1,5 +1,7 @@
 """Shared constants for the feature-selection experiment (MA-BBOB)."""
 
+import os
+
 # 10 MA-BBOB training instances (indices into the CSV data)
 TRAINING_INSTANCES = list(range(10))
 
@@ -17,6 +19,7 @@ N_PARENTS = 1
 N_OFFSPRING = 1
 
 OLLAMA_MODEL = "qwen3:8b"
+OLLAMA_PORT = int(os.environ.get("OLLAMA_PORT", 11434))
 
 ALLOWED_IMPORTS = ["numpy"]
 
