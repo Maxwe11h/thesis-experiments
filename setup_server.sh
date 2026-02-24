@@ -1,47 +1,64 @@
 #!/bin/bash
 # Setup script for REL Compute servers (vibranium, geranium, etc.)
-# Run this once per server to clone the repo and install dependencies.
+# Creates a conda env on /local and installs only the deps needed to run experiments.
 #
 # Usage:
 #   ssh vibranium.liacs.nl
-#   bash setup_server.sh        # if copied over
-#   # OR run inline after cloning:
+#   # First time: clone then run setup
+#   git clone --recurse-submodules https://github.com/Maxwe11h/thesis-experiments.git /local/$USER/thesis
 #   cd /local/$USER/thesis && bash setup_server.sh
+#
+#   # Update existing:
+#   cd /local/$USER/thesis && git pull --ff-only && git submodule update --init --recursive && bash setup_server.sh
 
 set -euo pipefail
 
 WORK_DIR="/local/$USER/thesis"
-REPO_URL="https://github.com/Maxwe11h/thesis-experiments.git"
+ENV_DIR="/local/$USER/conda_envs/thesis"
+PYTHON_VER="3.11"
 
 echo "=== Setting up thesis experiment on $(hostname) ==="
 echo "Working directory: $WORK_DIR"
+echo "Conda env: $ENV_DIR"
 
-# --- Clone or update repo ---
-if [ -d "$WORK_DIR/.git" ]; then
-    echo "Repo exists, pulling latest..."
-    cd "$WORK_DIR"
-    git pull --ff-only
-    git submodule update --init --recursive
-else
-    echo "Cloning repo..."
-    git clone --recurse-submodules "$REPO_URL" "$WORK_DIR"
-    cd "$WORK_DIR"
+cd "$WORK_DIR"
+
+# --- Create conda env if it doesn't exist ---
+if [ ! -d "$ENV_DIR" ]; then
+    echo "Creating conda env (Python $PYTHON_VER) at $ENV_DIR..."
+    conda create -y -p "$ENV_DIR" python="$PYTHON_VER"
 fi
 
-# --- Python environment via uv ---
-if ! command -v uv &>/dev/null; then
-    echo "Installing uv..."
-    pip install uv
-fi
+echo "Activating conda env..."
+eval "$(conda shell.bash hook)"
+conda activate "$ENV_DIR"
 
-# Init uv project if needed
-if [ ! -f "$WORK_DIR/pyproject.toml" ]; then
-    uv init
-fi
+echo "Python: $(python --version) at $(which python)"
 
-# Install BLADE and LLaMEA as editable + runtime deps
-uv add --editable ./BLADE --editable ./LLaMEA
-uv add numpy pandas scipy scikit-learn jsonlines ioh configspace ollama
+# --- Install dependencies ---
+# Install BLADE and LLaMEA as editable, but skip their heavy optional deps
+echo ""
+echo "=== Installing packages ==="
+pip install --no-deps -e ./LLaMEA
+pip install --no-deps -e ./BLADE
+
+# Install only the runtime deps we actually need
+pip install \
+    numpy \
+    pandas \
+    scipy \
+    scikit-learn \
+    ioh \
+    ollama \
+    jsonlines \
+    configspace \
+    joblib \
+    tqdm \
+    lizard \
+    networkx \
+    xgboost \
+    openai \
+    virtualenv
 
 # --- Create results and logs directories ---
 mkdir -p "$WORK_DIR/results"
@@ -65,7 +82,7 @@ fi
 # --- Verify setup ---
 echo ""
 echo "=== Verifying setup ==="
-uv run python -c "
+python -c "
 from experiments.run_experiment import CONDITIONS
 from experiments.config import BEHAVIORAL_FEATURES, OLLAMA_MODEL
 print(f'Model: {OLLAMA_MODEL}')
@@ -77,9 +94,12 @@ print('Setup OK')
 echo ""
 echo "=== Setup complete ==="
 echo ""
+echo "To activate the env:"
+echo "  conda activate $ENV_DIR"
+echo ""
 echo "To run conditions:"
 echo "  cd $WORK_DIR"
-echo "  nohup uv run python run_conditions.py <conditions...> > logs/run.log 2>&1 &"
+echo "  nohup python run_conditions.py <conditions...> > logs/run.log 2>&1 &"
 echo ""
 echo "To monitor:"
 echo "  tail -f $WORK_DIR/logs/run.log"
