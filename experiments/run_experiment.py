@@ -1,8 +1,8 @@
 """Main runner: executes thesis experiments using BLADE's Experiment infrastructure.
 
-Uses BLADE's Experiment for seed management, logging, progress display,
-and problem lifecycle. Each condition is a (method, problem) pair run
-across multiple seeds.
+Uses BLADE's Experiment for logging, progress display, and problem lifecycle.
+Each condition is a (method, problem) pair run once — all randomness is
+controlled by the inner seed loop inside MaBBOBProblem.evaluate().
 """
 
 from iohblade.experiment import Experiment
@@ -12,6 +12,7 @@ from iohblade.methods import LLaMEA
 
 from .config import (
     TRAINING_INSTANCES,
+    EVAL_SEEDS,
     DIMS,
     BUDGET_FACTOR,
     BBOB_BOUNDS,
@@ -20,30 +21,15 @@ from .config import (
     N_OFFSPRING,
     LLAMEA_BUDGET,
     OLLAMA_MODEL,
-    SEEDS,
+    BEHAVIORAL_FEATURES,
 )
-from .feedback import vanilla_feedback, behavioral_feedback
+from .feedback import vanilla_feedback, make_single_feature_feedback
 from .mabbob_problem import MaBBOBProblem
 
-
-CONDITIONS = {
-    "vanilla": {
-        "make_feedback": vanilla_feedback,
-        "feature_guided_mutation": False,
-    },
-    "behavioral": {
-        "make_feedback": behavioral_feedback,
-        "feature_guided_mutation": False,
-    },
-    "sage": {
-        "make_feedback": vanilla_feedback,
-        "feature_guided_mutation": True,
-    },
-    "combined": {
-        "make_feedback": behavioral_feedback,
-        "feature_guided_mutation": True,
-    },
-}
+# Build CONDITIONS: vanilla + 11 single-feature runs = 12 total
+CONDITIONS = {"vanilla": {"make_feedback": vanilla_feedback}}
+for _feat in BEHAVIORAL_FEATURES:
+    CONDITIONS[_feat] = {"make_feedback": make_single_feature_feedback(_feat)}
 
 
 def make_problem(make_feedback, use_worker_pool=True):
@@ -51,6 +37,7 @@ def make_problem(make_feedback, use_worker_pool=True):
     return MaBBOBProblem(
         make_feedback=make_feedback,
         training_instances=TRAINING_INSTANCES,
+        eval_seeds=EVAL_SEEDS,
         dims=DIMS,
         budget_factor=BUDGET_FACTOR,
         bbob_bounds=BBOB_BOUNDS,
@@ -59,7 +46,7 @@ def make_problem(make_feedback, use_worker_pool=True):
     )
 
 
-def make_method(name, feature_guided_mutation=False):
+def make_method(name):
     """Create a BLADE LLaMEA method with thesis config."""
     llm = Ollama_LLM(model=OLLAMA_MODEL)
     return LLaMEA(
@@ -70,31 +57,29 @@ def make_method(name, feature_guided_mutation=False):
         n_offspring=N_OFFSPRING,
         elitism=True,
         HPO=False,
-        feature_guided_mutation=feature_guided_mutation,
+        feature_guided_mutation=False,
     )
 
 
-def run_condition(condition_name, seeds=None, show_stdout=True,
+def run_condition(condition_name, show_stdout=True,
                   log_stdout=True, use_worker_pool=True):
-    """Run a single condition across seeds using BLADE's Experiment.
+    """Run a single condition using BLADE's Experiment.
 
     Results are saved to ``results/<condition_name>/`` with structured
     logging (experimentlog.jsonl, per-run directories with log.jsonl,
     conversationlog.jsonl, progress.json).
     """
-    if seeds is None:
-        seeds = list(SEEDS)
     cfg = CONDITIONS[condition_name]
 
     problem = make_problem(cfg["make_feedback"], use_worker_pool=use_worker_pool)
-    method = make_method(condition_name, cfg["feature_guided_mutation"])
+    method = make_method(condition_name)
     logger = ExperimentLogger(f"results/{condition_name}")
 
     experiment = Experiment(
         methods=[method],
         problems=[problem],
         budget=LLAMEA_BUDGET,
-        seeds=seeds,
+        seeds=[0],
         show_stdout=show_stdout,
         log_stdout=log_stdout,
         exp_logger=logger,
@@ -104,13 +89,13 @@ def run_condition(condition_name, seeds=None, show_stdout=True,
     return logger
 
 
-def run_full_experiment(seeds=None, show_stdout=True, use_worker_pool=True):
-    """Run all 4 conditions sequentially."""
+def run_full_experiment(show_stdout=True, use_worker_pool=True):
+    """Run all 12 conditions sequentially."""
     for name in CONDITIONS:
         print(f"\n{'#'*60}")
         print(f"  CONDITION: {name}")
         print(f"{'#'*60}")
-        run_condition(name, seeds, show_stdout, use_worker_pool=use_worker_pool)
+        run_condition(name, show_stdout, use_worker_pool=use_worker_pool)
 
 
 def main():

@@ -27,6 +27,7 @@ class MaBBOBProblem(MA_BBOB):
         *,
         make_feedback,
         training_instances,
+        eval_seeds=5,
         dims=(5,),
         budget_factor=2000,
         bbob_bounds=None,
@@ -64,6 +65,7 @@ class MaBBOBProblem(MA_BBOB):
         self.make_feedback = make_feedback
         self.bbob_bounds = bbob_bounds
         self.allowed_imports = allowed_imports
+        self.eval_seeds = eval_seeds
 
     def __call__(self, solution, logger=None):
         """Override to prevent LLaMEA's ExperimentLogger from being assigned
@@ -129,54 +131,56 @@ class MaBBOBProblem(MA_BBOB):
             solution.set_scores(float("-inf"), str(e))
             return solution
 
-        # --- full MA-BBOB evaluation (reuses parent's CSV data) ---
+        # --- full MA-BBOB evaluation with inner seed loop ---
         aucs = []
         all_metrics = []
 
         for dim in self.dims:
             budget = self.budget_factor * dim
             for idx in self.training_instances:
-                f_new = ioh.problem.ManyAffine(
-                    xopt=np.array(self.opt_locs.iloc[idx])[:dim],
-                    weights=np.array(self.weights.iloc[idx]),
-                    instances=np.array(self.iids.iloc[idx], dtype=int),
-                    n_variables=dim,
-                )
-                f_new.set_id(100)
-                f_new.set_instance(idx)
+                for seed in range(self.eval_seeds):
+                    random.seed(seed)
+                    np.random.seed(seed)
 
-                l_aoc = aoc_logger(
-                    budget, upper=1e2,
-                    triggers=[ioh_logger.trigger.ALWAYS],
-                )
-                l_traj = TrajectoryLogger(
-                    dim, triggers=[ioh_logger.trigger.ALWAYS],
-                )
-                combined = ioh_logger.Combine([l_aoc, l_traj])
-                f_new.attach_logger(combined)
-
-                random.seed(idx)
-                np.random.seed(idx)
-                try:
-                    algorithm = local_ns[algorithm_name](budget=budget, dim=dim)
-                    algorithm(f_new)
-                except OverBudgetException:
-                    pass
-                except Exception as e:
-                    solution.set_scores(float("-inf"), str(e))
-                    return solution
-
-                auc = correct_aoc(f_new, l_aoc, budget)
-                aucs.append(auc)
-
-                df = l_traj.to_dataframe()
-                if len(df) > 1:
-                    metrics = compute_behavior_metrics(
-                        df, bounds=self.bbob_bounds * dim,
+                    f_new = ioh.problem.ManyAffine(
+                        xopt=np.array(self.opt_locs.iloc[idx])[:dim],
+                        weights=np.array(self.weights.iloc[idx]),
+                        instances=np.array(self.iids.iloc[idx], dtype=int),
+                        n_variables=dim,
                     )
-                    all_metrics.append(metrics)
+                    f_new.set_id(100)
+                    f_new.set_instance(idx)
 
-                f_new.reset()
+                    l_aoc = aoc_logger(
+                        budget, upper=1e2,
+                        triggers=[ioh_logger.trigger.ALWAYS],
+                    )
+                    l_traj = TrajectoryLogger(
+                        dim, triggers=[ioh_logger.trigger.ALWAYS],
+                    )
+                    combined = ioh_logger.Combine([l_aoc, l_traj])
+                    f_new.attach_logger(combined)
+
+                    try:
+                        algorithm = local_ns[algorithm_name](budget=budget, dim=dim)
+                        algorithm(f_new)
+                    except OverBudgetException:
+                        pass
+                    except Exception as e:
+                        solution.set_scores(float("-inf"), str(e))
+                        return solution
+
+                    auc = correct_aoc(f_new, l_aoc, budget)
+                    aucs.append(auc)
+
+                    df = l_traj.to_dataframe()
+                    if len(df) > 1:
+                        metrics = compute_behavior_metrics(
+                            df, bounds=self.bbob_bounds * dim,
+                        )
+                        all_metrics.append(metrics)
+
+                    f_new.reset()
 
         auc_mean = np.mean(aucs)
         auc_std = np.std(aucs)
@@ -200,6 +204,7 @@ class MaBBOBProblem(MA_BBOB):
             "dims": self.dims,
             "budget_factor": self.budget_factor,
             "bbob_bounds": self.bbob_bounds,
+            "eval_seeds": self.eval_seeds,
         }
 
     @staticmethod
