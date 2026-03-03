@@ -132,6 +132,8 @@ class MaBBOBProblem(MA_BBOB):
             return solution
 
         # --- full MA-BBOB evaluation with inner seed loop ---
+        import time as _time
+        _eval_t0 = _time.monotonic()
         aucs = []
         all_metrics = []
 
@@ -182,6 +184,8 @@ class MaBBOBProblem(MA_BBOB):
 
                     f_new.reset()
 
+        _eval_time = _time.monotonic() - _eval_t0
+
         auc_mean = np.mean(aucs)
         auc_std = np.std(aucs)
         avg_met = self._average_metrics(all_metrics)
@@ -190,6 +194,7 @@ class MaBBOBProblem(MA_BBOB):
         solution.set_scores(auc_mean, feedback)
         solution.add_metadata("aucs", aucs)
         solution.add_metadata("behavioral_features", avg_met)
+        solution.add_metadata("evaluation_time_s", round(_eval_time, 3))
 
         return solution
 

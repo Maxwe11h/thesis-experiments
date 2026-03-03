@@ -3,4 +3,4 @@
 	url = https://github.com/Maxwe11h/BLADE.git
 [submodule "LLaMEA"]
 	path = LLaMEA
-	url = https://github.com/XAI-liacs/LLaMEA.git
+	url = https://github.com/Maxwe11h/LLaMEA.git
