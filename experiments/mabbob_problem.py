@@ -14,7 +14,7 @@ from pathlib import Path
 
 import numpy as np
 
-from iohblade.problems.mabbob import MA_BBOB
+from iohblade.benchmarks.BBOB.mabbob import MA_BBOB
 
 _THESIS_ROOT = Path(__file__).resolve().parents[1]
 
