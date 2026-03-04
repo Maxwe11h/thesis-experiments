@@ -182,17 +182,56 @@ ssh duranium "cat /local/s3815129/thesis/results/avg_improvement/progress.json" 
 
 Results live on `/local` which is **not backed up** and is wiped on OS reinstalls. Copy results off before the monthly reboot (2nd Sunday, ~23:30).
 
+### Step 1 — Tar results on each server
+
+SSH into each server and create a tarball in your home directory (`~/`), which is NFS-backed and survives reboots (unlike `/local`):
+
 ```bash
-# From local machine via the REL gateway
-rsync -avz -e "ssh -J ssh.liacs.nl" vibranium.liacs.nl:/local/s3815129/thesis/results/ ./results_vibranium/
-rsync -avz -e "ssh -J ssh.liacs.nl" duranium.liacs.nl:/local/s3815129/thesis/results/ ./results_duranium/
+ssh liacs
+ssh vibranium
+tar czf ~/thesis_results_vibranium.tar.gz -C /local/$USER/thesis results
+exit
+ssh duranium
+tar czf ~/thesis_results_duranium.tar.gz -C /local/$USER/thesis results
+exit
 ```
 
-Or copy to `/data` on the server as intermediate backup:
+### Step 2 — Stage on the gateway
+
+Home directories are **not** shared between compute nodes and the gateway (silver). Copy the tarballs from the compute nodes to the gateway:
+
+```bash
+# On the gateway (silver)
+scp vibranium:/home/$USER/thesis_results_vibranium.tar.gz ~/
+scp duranium:/home/$USER/thesis_results_duranium.tar.gz ~/
+```
+
+### Step 3 — Pull to local machine
+
+Requires eduVPN connection. From your Mac:
+
+```bash
+scp liacs:thesis_results_vibranium.tar.gz .
+scp liacs:thesis_results_duranium.tar.gz .
+```
+
+### Step 4 — Extract and merge
+
+```bash
+tar xzf thesis_results_vibranium.tar.gz && mv results results_vibranium
+tar xzf thesis_results_duranium.tar.gz && mv results results_duranium
+mkdir -p results && cp -r results_vibranium/* results_duranium/* results/
+```
+
+### Alternative — Backup on the server
+
+Copy to `/data` (backed up) as intermediate insurance:
 
 ```bash
 cp -r /local/$USER/thesis/results /data/$USER/thesis_results_$(date +%Y%m%d)
 ```
+
+> **Note**: Direct `rsync -J` and `scp` via the gateway do not work from off-premise due to GSSAPI authentication requirements. The staged approach above is the reliable method.
 
 ## Troubleshooting
 

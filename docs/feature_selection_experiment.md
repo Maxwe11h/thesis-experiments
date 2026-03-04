@@ -175,7 +175,7 @@ nohup python run_conditions.py \
   > logs/group3.log 2>&1 &
 ```
 
-The two vibranium groups run as parallel processes sharing one Ollama instance. Since candidate evaluation (50 algorithm runs, CPU-bound) takes much longer than LLM inference, the processes naturally interleave: while one evaluates a candidate, the other gets its Ollama response.
+The two vibranium groups run as parallel processes on separate GPUs, each with its own Ollama instance (group 1 on GPU 0 port 11434, group 2 on GPU 1 port 11435). See the [server runbook](server_runbook.md) for dual-GPU Ollama setup.
 
 ### Monitoring
 
@@ -192,13 +192,7 @@ ssh ssh.liacs.nl "ssh vibranium 'cat /local/s3815129/thesis/results/vanilla/prog
 
 ### Retrieving results
 
-Results must be copied off `/local` before the monthly reboot (2nd Sunday of each month, ~23:30).
-
-```bash
-# From local machine via the gateway
-rsync -avz -e "ssh -J ssh.liacs.nl" vibranium:/local/$USER/thesis/results/ ./results_vibranium/
-rsync -avz -e "ssh -J ssh.liacs.nl" duranium:/local/$USER/thesis/results/ ./results_duranium/
-```
+Results must be copied off `/local` before the monthly reboot (2nd Sunday of each month, ~23:30). See the [server runbook](server_runbook.md#retrieving-results) for the full staged retrieval procedure (tar on compute node, stage on gateway, scp to local via eduVPN).
 
 ## Analysis plan
 
