@@ -40,11 +40,11 @@ GPU1_MODELS="rnj-1-8b olmo3-7b"                      # ~5+5 = 10 GB peak
 GPU2_MODELS="devstral-small-2-24b qwen3.5-27b"       # ~15+17 = 17 GB peak (sequential)
 GPU3_MODELS="olmo3-32b"                               # ~19 GB peak
 
-GROUPS=("$GPU0_MODELS" "$GPU1_MODELS" "$GPU2_MODELS" "$GPU3_MODELS")
+GPU_GROUPS=("$GPU0_MODELS" "$GPU1_MODELS" "$GPU2_MODELS" "$GPU3_MODELS")
 NAMES=("small-a" "small-b" "large-a" "large-b")
 
-for i in "${!GROUPS[@]}"; do
-    MODELS="${GROUPS[$i]}"
+for i in "${!GPU_GROUPS[@]}"; do
+    MODELS="${GPU_GROUPS[$i]}"
     NAME="${NAMES[$i]}"
     CMD="sbatch --nodelist=$NODE --job-name=p1-${NAME} slurm/phase1_ollama.sbatch \"$MODELS\""
 
