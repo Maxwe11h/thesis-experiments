@@ -40,7 +40,7 @@ CONDA_ENV="/local/$USER/conda_envs/thesis"
 REPO_DIR="$HOME/thesis"
 
 # Unique port per job to avoid collisions
-OLLAMA_PORT=$((11434 + (SLURM_JOB_ID % 100)))
+export OLLAMA_PORT=$((11434 + (SLURM_JOB_ID % 100)))
 export OLLAMA_HOST="127.0.0.1:${OLLAMA_PORT}"
 
 NODE=$(hostname)
