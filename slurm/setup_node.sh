@@ -119,7 +119,8 @@ pip install \
     "openai>=1.99.1,<2" \
     virtualenv \
     antropy \
-    nolds
+    nolds \
+    pymoo
 
 # ---- Done ----
 echo ""
