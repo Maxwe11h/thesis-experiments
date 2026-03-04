@@ -10,6 +10,8 @@ ManyAffine setup, AOCC scoring, prompts) from BLADE's MA_BBOB class. Adds:
 
 import os
 import random
+import sys
+import tempfile
 from pathlib import Path
 
 import numpy as np
@@ -66,6 +68,19 @@ class MaBBOBProblem(MA_BBOB):
         self.bbob_bounds = bbob_bounds
         self.allowed_imports = allowed_imports
         self.eval_seeds = eval_seeds
+
+    def _ensure_env(self):
+        """Skip virtualenv creation — use the current conda Python directly.
+
+        BLADE's default _ensure_env creates a fresh virtualenv and pip-installs
+        dependencies, which fails when many seeds race simultaneously.  Since
+        our conda env already has everything, we just need a temp dir for the
+        worker script and problem pickle.
+        """
+        if self._env_path is not None:
+            return
+        self._env_path = Path(tempfile.mkdtemp(prefix="blade_env_"))
+        self._python_bin = Path(sys.executable)
 
     def __call__(self, solution, logger=None):
         """Override to prevent LLaMEA's ExperimentLogger from being assigned
