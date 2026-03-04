@@ -208,6 +208,7 @@ def run_single_seed(
     method = make_method(
         model_tag, llm, budget=budget, initial_solutions=initial_solutions,
     )
+    os.makedirs(result_dir, exist_ok=True)
     logger = ExperimentLogger(result_dir)
 
     experiment = Experiment(
