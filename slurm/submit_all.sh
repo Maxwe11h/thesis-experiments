@@ -38,7 +38,7 @@ echo ""
 GPU0_MODELS="qwen3.5-4b qwen3.5-9b granite4-3b"    # ~3+6+2 = 11 GB peak
 GPU1_MODELS="rnj-1-8b olmo3-7b"                      # ~5+5 = 10 GB peak
 GPU2_MODELS="devstral-small-2-24b qwen3.5-27b"       # ~15+17 = 17 GB peak (sequential)
-GPU3_MODELS="olmo3-30b"                               # ~19 GB peak
+GPU3_MODELS="olmo3-32b"                               # ~19 GB peak
 
 GROUPS=("$GPU0_MODELS" "$GPU1_MODELS" "$GPU2_MODELS" "$GPU3_MODELS")
 NAMES=("small-a" "small-b" "large-a" "large-b")

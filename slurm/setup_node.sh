@@ -60,8 +60,8 @@ MODELS=(
     "qwen3.5:27b"
     "rnj-1:8b"
     "devstral-small-2:24b"
-    "olmo3:7b"
-    "olmo3:30b"
+    "olmo-3:7b"
+    "olmo-3:32b"
     "granite4:3b"
 )
 

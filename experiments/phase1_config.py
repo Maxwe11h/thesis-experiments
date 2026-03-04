@@ -88,8 +88,8 @@ CANDIDATE_MODELS = {
     # --- Devstral small 2 ---
     "devstral-small-2-24b": {"type": "ollama", "model": "devstral-small-2:24b"},
     # --- OLMo 3 family ---
-    "olmo3-7b":     {"type": "ollama", "model": "olmo3:7b"},
-    "olmo3-30b":    {"type": "ollama", "model": "olmo3:30b"},
+    "olmo3-7b":     {"type": "ollama", "model": "olmo-3:7b"},
+    "olmo3-32b":    {"type": "ollama", "model": "olmo-3:32b"},
     # --- Granite 4 ---
     "granite4-3b":  {"type": "ollama", "model": "granite4:3b"},
     # --- Gemini 3 (API) ---
