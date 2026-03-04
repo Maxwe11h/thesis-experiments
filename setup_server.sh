@@ -59,7 +59,9 @@ pip install \
     networkx \
     "xgboost>=2.1.1,<3" \
     "openai>=1.99.1,<2" \
-    virtualenv
+    virtualenv \
+    antropy \
+    nolds
 
 # --- Create results and logs directories ---
 mkdir -p "$WORK_DIR/results"

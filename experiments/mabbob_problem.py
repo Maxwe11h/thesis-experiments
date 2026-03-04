@@ -49,7 +49,7 @@ class MaBBOBProblem(MA_BBOB):
             dims=list(dims),
             budget_factor=budget_factor,
             eval_timeout=eval_timeout,
-            dependencies=["ioh", "pandas", "scipy", "scikit-learn", "jsonlines", "configspace"],
+            dependencies=["ioh", "pandas", "scipy", "scikit-learn", "jsonlines", "configspace", "antropy", "nolds"],
         )
 
         # Worker pool settings — not accepted by MA_BBOB.__init__, set directly.
