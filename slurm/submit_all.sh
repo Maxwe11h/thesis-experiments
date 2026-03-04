@@ -8,11 +8,11 @@
 #   - Models within a job run sequentially (no model-swapping overhead)
 #
 # Estimated times (L40S, 5 parallel seeds):
-#   GPU 0: 4B + 9B + 3B        ≈  8h  (3 small models)
-#   GPU 1: 8B + 7B             ≈  6h  (2 medium models)
-#   GPU 2: 24B + 27B           ≈  8h  (2 large models)
-#   GPU 3: 30B                 ≈  5h  (1 large model)
-#   Total wall time: ~8h
+#   GPU 0: 32B                 ≈  6h  (submitted first)
+#   GPU 1: 27B + 3B            ≈  7h
+#   GPU 2: 24B + 4B            ≈  7h
+#   GPU 3: 8B + 7B + 9B        ≈ 10h  (submitted last)
+#   Total wall time: ~10h
 #
 # Usage:
 #   bash slurm/submit_all.sh              # defaults to ceratanium
@@ -34,14 +34,15 @@ echo "Phase 1 — SLURM submission plan"
 echo "  Node: $NODE"
 echo ""
 
-# Group models by VRAM to balance GPU time across 4 jobs
-GPU0_MODELS="qwen3.5-4b qwen3.5-9b granite4-3b"    # ~3+6+2 = 11 GB peak
-GPU1_MODELS="rnj-1-8b olmo3-7b"                      # ~5+5 = 10 GB peak
-GPU2_MODELS="devstral-small-2-24b qwen3.5-27b"       # ~15+17 = 17 GB peak (sequential)
-GPU3_MODELS="olmo3-32b"                               # ~19 GB peak
+# Large models get dedicated GPUs, submitted first for earliest start.
+# Small models packed onto remaining GPU.
+GPU0_MODELS="olmo3-32b"                               # ~19 GB, ~6h
+GPU1_MODELS="qwen3.5-27b granite4-3b"                 # ~17+2 GB, ~7h
+GPU2_MODELS="devstral-small-2-24b qwen3.5-4b"         # ~15+3 GB, ~7h
+GPU3_MODELS="rnj-1-8b olmo3-7b qwen3.5-9b"            # ~5+5+6 GB, ~10h
 
 GPU_GROUPS=("$GPU0_MODELS" "$GPU1_MODELS" "$GPU2_MODELS" "$GPU3_MODELS")
-NAMES=("small-a" "small-b" "large-a" "large-b")
+NAMES=("large-a" "large-b" "large-c" "small")
 
 for i in "${!GPU_GROUPS[@]}"; do
     MODELS="${GPU_GROUPS[$i]}"
