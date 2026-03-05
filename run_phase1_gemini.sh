@@ -6,8 +6,19 @@
 #   cd /local/$USER/thesis
 #   nohup bash run_phase1_gemini.sh > logs/gemini_all.log 2>&1 &
 
-set -euo pipefail
-set -a && source .env && set +a
+set -uo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+cd "$SCRIPT_DIR"
+
+if [ -f .env ]; then
+    set -a && source .env && set +a
+fi
+
+if [ -z "${GOOGLE_API_KEY:-}" ]; then
+    echo "ERROR: GOOGLE_API_KEY not set. Add to .env or export it."
+    exit 1
+fi
 
 MODELS="gemini-3-flash gemini-3-pro"
 SEEDS="0 1 2 3 4"
