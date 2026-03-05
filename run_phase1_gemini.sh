@@ -11,6 +11,10 @@ set -uo pipefail
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 cd "$SCRIPT_DIR"
 
+# Activate conda env
+eval "$(conda shell.bash hook)"
+conda activate /local/$USER/conda_envs/thesis
+
 if [ -f .env ]; then
     set -a && source .env && set +a
 fi
