@@ -28,3 +28,5 @@ results/
 
 # BLADE venvs created by subprocess isolation
 BLADE/iohblade/problems/venvs/
+
+.env

@@ -27,7 +27,7 @@ from pathlib import Path
 import numpy as np
 
 from iohblade.experiment import Experiment
-from iohblade.llm import Gemini_LLM, Ollama_LLM
+from iohblade.llm import Gemini_LLM, Ollama_LLM, VLLM_LLM
 from iohblade.loggers import ExperimentLogger
 from iohblade.methods import LLaMEA as BladeLLaMEA
 from llamea import LLaMEA as LLaMEA_Algorithm
@@ -44,6 +44,7 @@ from .phase1_config import (
     DIMS,
     ELITISM,
     EVAL_SEEDS,
+    EVAL_TIMEOUT,
     LLAMEA_BUDGET,
     MUTATION_PROMPTS,
     N_OFFSPRING,
@@ -52,6 +53,7 @@ from .phase1_config import (
     RESULTS_DIR,
     RUN_SEEDS,
     TRAINING_INSTANCES,
+    VLLM_BASE_URL,
 )
 
 
@@ -113,21 +115,25 @@ class Phase1LLaMEA(BladeLLaMEA):
 # Factory helpers
 # ---------------------------------------------------------------------------
 
-def make_llm(model_cfg, port=None):
+def make_llm(model_cfg, port=None, base_url=None):
     """Instantiate an LLM object from a model registry entry.
 
     Args:
         model_cfg: dict with 'type' and 'model' keys (from CANDIDATE_MODELS).
         port: Ollama port override (ignored for API models).
+        base_url: vLLM base URL override (ignored for non-vllm models).
 
     Returns:
-        An LLM instance (Ollama_LLM or Gemini_LLM).
+        An LLM instance (Ollama_LLM, VLLM_LLM, or Gemini_LLM).
     """
     mtype = model_cfg["type"]
     model = model_cfg["model"]
 
     if mtype == "ollama":
         return Ollama_LLM(model=model, port=port or OLLAMA_PORT)
+
+    if mtype == "vllm":
+        return VLLM_LLM(model=model, base_url=base_url or VLLM_BASE_URL)
 
     if mtype == "gemini":
         api_key = os.environ.get("GOOGLE_API_KEY") or os.environ.get("GEMINI_API_KEY")
@@ -140,7 +146,7 @@ def make_llm(model_cfg, port=None):
     raise ValueError(f"Unknown model type: {mtype!r}")
 
 
-def make_problem(use_worker_pool=True, eval_seeds=None, training_instances=None):
+def make_problem(use_worker_pool=True, eval_seeds=None, training_instances=None, eval_timeout=None):
     """Create a vanilla MaBBOBProblem with Phase 1 evaluation config."""
     return MaBBOBProblem(
         make_feedback=vanilla_feedback,
@@ -151,6 +157,7 @@ def make_problem(use_worker_pool=True, eval_seeds=None, training_instances=None)
         bbob_bounds=BBOB_BOUNDS,
         allowed_imports=ALLOWED_IMPORTS,
         use_worker_pool=use_worker_pool,
+        eval_timeout=eval_timeout or EVAL_TIMEOUT,
     )
 
 
@@ -180,8 +187,10 @@ def run_single_seed(
     model_cfg=None,
     budget=None,
     port=None,
+    base_url=None,
     eval_seeds=None,
     training_instances=None,
+    eval_timeout=None,
     use_worker_pool=True,
     show_stdout=True,
     results_dir=None,
@@ -198,11 +207,12 @@ def run_single_seed(
 
     result_dir = f"{results_dir}/{model_tag}/seed-{seed}"
 
-    llm = make_llm(model_cfg, port=port)
+    llm = make_llm(model_cfg, port=port, base_url=base_url)
     problem = make_problem(
         use_worker_pool=use_worker_pool,
         eval_seeds=eval_seeds,
         training_instances=training_instances,
+        eval_timeout=eval_timeout,
     )
     initial_solutions = get_initial_solutions()
     method = make_method(
@@ -244,8 +254,10 @@ def run_model(
     seeds=None,
     budget=None,
     port=None,
+    base_url=None,
     eval_seeds=None,
     training_instances=None,
+    eval_timeout=None,
     use_worker_pool=True,
     show_stdout=True,
     results_dir=None,
@@ -265,8 +277,10 @@ def run_model(
             model_cfg=model_cfg,
             budget=budget,
             port=port,
+            base_url=base_url,
             eval_seeds=eval_seeds,
             training_instances=training_instances,
+            eval_timeout=eval_timeout,
             use_worker_pool=use_worker_pool,
             show_stdout=show_stdout,
             results_dir=results_dir,
@@ -430,6 +444,10 @@ examples:
         help=f"Number of MA-BBOB training instances (default: {len(TRAINING_INSTANCES)})",
     )
     parser.add_argument(
+        "--eval-timeout", type=int, default=None,
+        help=f"Max seconds per candidate evaluation (default: {EVAL_TIMEOUT})",
+    )
+    parser.add_argument(
         "--no-worker-pool", action="store_true",
         help="Disable persistent worker pool (evaluate via subprocess per call)",
     )
@@ -440,6 +458,14 @@ examples:
     parser.add_argument(
         "--custom-gemini", type=str, default=None,
         help="Run a custom Gemini model (use with a single model tag as label)",
+    )
+    parser.add_argument(
+        "--custom-vllm", type=str, default=None,
+        help="Run a custom vLLM model (use with a single model tag as label)",
+    )
+    parser.add_argument(
+        "--vllm-base-url", type=str, default=None,
+        help=f"vLLM base URL (default: VLLM_BASE_URL env or {VLLM_BASE_URL})",
     )
     parser.add_argument(
         "--sanity", action="store_true",
@@ -500,12 +526,14 @@ examples:
             model_cfg = {"type": "ollama", "model": args.custom_ollama}
         elif args.custom_gemini and len(model_list) == 1:
             model_cfg = {"type": "gemini", "model": args.custom_gemini}
+        elif args.custom_vllm and len(model_list) == 1:
+            model_cfg = {"type": "vllm", "model": args.custom_vllm}
         elif tag in CANDIDATE_MODELS:
             model_cfg = CANDIDATE_MODELS[tag]
         else:
             print(f"ERROR: unknown model tag '{tag}'", file=sys.stderr)
             print(f"Valid: {', '.join(CANDIDATE_MODELS)}", file=sys.stderr)
-            print("Or use --custom-ollama / --custom-gemini", file=sys.stderr)
+            print("Or use --custom-ollama / --custom-gemini / --custom-vllm", file=sys.stderr)
             sys.exit(1)
 
         print(f"\n{'#'*60}")
@@ -518,8 +546,10 @@ examples:
             seeds=seeds or RUN_SEEDS,
             budget=budget,
             port=args.port,
+            base_url=args.vllm_base_url,
             eval_seeds=eval_seeds,
             training_instances=training_instances,
+            eval_timeout=args.eval_timeout,
             use_worker_pool=not args.no_worker_pool,
             show_stdout=True,
             results_dir=results_dir,

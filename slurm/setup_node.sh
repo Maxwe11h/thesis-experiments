@@ -6,7 +6,8 @@
 #   1. Installs Ollama to /local/$USER/ollama/ (if not already present)
 #   2. Pulls all 8 Ollama models
 #   3. Creates conda env at /local/$USER/conda_envs/thesis
-#   4. Installs Python dependencies
+#   4. Installs Python dependencies (including vLLM nightly)
+#   5. Pre-downloads HuggingFace models for vLLM
 #
 # NOTE: /local is per-node, so run this on each node you want to use.
 
@@ -122,15 +123,52 @@ pip install \
     nolds \
     pymoo
 
+# vLLM nightly — required for Qwen3.5 (Qwen3_5ForConditionalGeneration)
+# and Mistral3 (Mistral3ForConditionalGeneration) architecture support.
+# Once these land in a stable release, pin to that version instead.
+pip install vllm --pre
+
+# ---- 5. Pre-download HuggingFace models for vLLM ----
+echo ""
+echo "[5/5] Pre-downloading HuggingFace models for vLLM..."
+export HF_HOME="/local/$USER/huggingface"
+mkdir -p "$HF_HOME"
+
+HF_MODELS=(
+    "Qwen/Qwen3.5-4B"
+    "Qwen/Qwen3.5-9B"
+    "Qwen/Qwen3.5-27B"
+    "EssentialAI/rnj-1-instruct"
+    "mistralai/Devstral-Small-2-24B-Instruct-2512"
+    "allenai/Olmo-3-7B-Instruct"
+    "allenai/Olmo-3-32B-Think"
+    "ibm-granite/granite-4.0-micro"
+)
+
+for hf_model in "${HF_MODELS[@]}"; do
+    echo "  Downloading $hf_model..."
+    python -c "from huggingface_hub import snapshot_download; snapshot_download('$hf_model')" || \
+        echo "  WARNING: failed to download $hf_model (may need HF token)"
+done
+
 # ---- Done ----
 echo ""
 echo "=== Setup complete on $NODE ==="
 echo ""
-echo "Available models:"
+echo "Available Ollama models:"
 echo "  ${MODELS[*]}"
 echo ""
-echo "To verify:"
+echo "HuggingFace cache: $HF_HOME"
+echo ""
+echo "To verify Ollama:"
 echo "  srun --partition=L40s_students --nodelist=$NODE --gres=gpu:1 --time=00:10:00 bash -c '"
 echo "    export OLLAMA_MODELS=/local/\$USER/ollama_models"
 echo "    /local/\$USER/ollama/bin/ollama serve &"
 echo "    sleep 3 && /local/\$USER/ollama/bin/ollama run qwen3.5:4b \"Hello\" && kill %1'"
+echo ""
+echo "To verify vLLM:"
+echo "  srun --partition=L40s_students --nodelist=$NODE --gres=gpu:1 --time=00:10:00 bash -c '"
+echo "    export HF_HOME=/local/\$USER/huggingface"
+echo "    conda activate /local/\$USER/conda_envs/thesis"
+echo "    python -m vllm.entrypoints.openai.api_server --model ibm-granite/granite-4.0-micro --port 8000 &"
+echo "    sleep 30 && curl http://localhost:8000/v1/models && kill %1'"
