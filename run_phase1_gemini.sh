@@ -25,15 +25,14 @@ if [ -z "${GOOGLE_API_KEY:-}" ]; then
 fi
 
 MODELS="gemini-3-flash gemini-3-pro"
-SEEDS="0 1 2 3 4"
 
+# Run 2 models in parallel, seeds sequential within each model.
+# (10 parallel processes + worker pools hit the per-user process limit.)
 pids=()
 for model in $MODELS; do
-    for seed in $SEEDS; do
-        echo "[$(date '+%H:%M:%S')] Starting $model seed $seed"
-        python run_phase1.py "$model" --seeds "$seed" > "logs/${model}_s${seed}.log" 2>&1 &
-        pids+=($!)
-    done
+    echo "[$(date '+%H:%M:%S')] Starting $model (all seeds sequential)"
+    python run_phase1.py "$model" > "logs/${model}.log" 2>&1 &
+    pids+=($!)
 done
 
 echo ""
