@@ -43,6 +43,7 @@ export HF_HOME="/local/$USER/huggingface"
 # Unique port per job to avoid collisions
 VLLM_PORT=$((8000 + (SLURM_JOB_ID % 100)))
 export VLLM_BASE_URL="http://127.0.0.1:${VLLM_PORT}/v1"
+export VLLM_API_KEY="unused"      # Match the api_key="unused" sent by BLADE client
 
 # Models that need --limit-mm-per-prompt (multimodal arch, text-only use)
 MULTIMODAL_MODELS="Qwen/Qwen3.5-4B Qwen/Qwen3.5-9B Qwen/Qwen3.5-27B"
