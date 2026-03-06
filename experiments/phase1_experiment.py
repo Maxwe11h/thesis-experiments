@@ -330,8 +330,11 @@ def summarise_run(result_dir):
                 except json.JSONDecodeError:
                     continue
 
-                fitness = entry.get("fitness", float("nan"))
-                status = "success" if fitness != float("-inf") and not math.isnan(fitness) else "failure"
+                try:
+                    fitness = float(entry.get("fitness", "nan"))
+                except (TypeError, ValueError):
+                    fitness = float("nan")
+                status = "success" if not math.isinf(fitness) and not math.isnan(fitness) else "failure"
                 aucs = entry.get("metadata", {}).get("aucs", [])
                 behavioral = entry.get("metadata", {}).get("behavioral_features", {})
 
