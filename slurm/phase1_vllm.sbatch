@@ -105,10 +105,10 @@ for MODEL_ENTRY in $MODELS; do
         --max-model-len 8192       # We only need short context for code gen
     )
 
-    # Multimodal models: override to text-only architecture to save VRAM
+    # Multimodal models: text-only mode (requires vLLM nightly / >=0.17)
     if echo "$MULTIMODAL_MODELS" | grep -qF "$HF_MODEL"; then
-        echo "  [info] Multimodal model — overriding to Qwen3NextForCausalLM"
-        VLLM_ARGS+=(--hf-overrides '{"architectures": ["Qwen3NextForCausalLM"]}')
+        echo "  [info] Multimodal model — adding --language-model-only"
+        VLLM_ARGS+=(--language-model-only)
     fi
 
     # --- Start vLLM server for this model ---
