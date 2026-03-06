@@ -101,7 +101,7 @@ for MODEL_ENTRY in $MODELS; do
     VLLM_ARGS=(
         --model "$HF_MODEL"
         --port "$VLLM_PORT"
-        --disable-log-requests
+        --no-enable-log-requests
         --max-model-len 8192       # We only need short context for code gen
     )
 
