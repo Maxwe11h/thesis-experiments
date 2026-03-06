@@ -103,6 +103,7 @@ for MODEL_ENTRY in $MODELS; do
         --port "$VLLM_PORT"
         --no-enable-log-requests
         --max-model-len 8192       # We only need short context for code gen
+        --api-key unused           # BLADE client sends api_key="unused"
     )
 
     # Multimodal models: text-only mode (requires vLLM nightly / >=0.17)
