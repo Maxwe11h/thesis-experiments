@@ -36,7 +36,7 @@ SEEDS="${2:-0 1 2 3 4}"
 PARALLEL_SEEDS="${3:-5}"   # max seeds to run concurrently
 
 # --- Paths ---
-CONDA_ENV="/local/$USER/conda_envs/thesis"
+CONDA_ENV="/local/$USER/conda_envs/thesis-vllm"
 REPO_DIR="$HOME/thesis"
 export HF_HOME="/local/$USER/huggingface"
 
