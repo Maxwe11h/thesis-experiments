@@ -105,10 +105,10 @@ for MODEL_ENTRY in $MODELS; do
         --max-model-len 8192       # We only need short context for code gen
     )
 
-    # Multimodal models: use text-only mode to save VRAM
+    # Multimodal models: disable vision encoder to save VRAM
     if echo "$MULTIMODAL_MODELS" | grep -qF "$HF_MODEL"; then
-        echo "  [info] Multimodal model — adding --language-model-only"
-        VLLM_ARGS+=(--language-model-only)
+        echo "  [info] Multimodal model — adding --limit-mm-per-prompt (JSON)"
+        VLLM_ARGS+=(--limit-mm-per-prompt '{"image": 0}')
     fi
 
     # --- Start vLLM server for this model ---
