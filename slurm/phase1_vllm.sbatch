@@ -129,7 +129,7 @@ for MODEL_ENTRY in $MODELS; do
             exit 1
         fi
         # Phase 2: check model is loaded and ready to serve
-        if curl -sf "http://127.0.0.1:${VLLM_PORT}/v1/models" 2>/dev/null | grep -q '"id"'; then
+        if curl -sf -H "Authorization: Bearer unused" "http://127.0.0.1:${VLLM_PORT}/v1/models" 2>/dev/null | grep -q '"id"'; then
             echo "  vLLM model ready (${i}s)"
             VLLM_READY=1
             break
