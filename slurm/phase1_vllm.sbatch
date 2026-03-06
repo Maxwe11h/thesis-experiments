@@ -105,10 +105,10 @@ for MODEL_ENTRY in $MODELS; do
         --max-model-len 8192       # We only need short context for code gen
     )
 
-    # Multimodal models: disable vision encoder to save VRAM
+    # Multimodal models: override to text-only architecture to save VRAM
     if echo "$MULTIMODAL_MODELS" | grep -qF "$HF_MODEL"; then
-        echo "  [info] Multimodal model — adding --limit-mm-per-prompt (JSON)"
-        VLLM_ARGS+=(--limit-mm-per-prompt '{"image": 0}')
+        echo "  [info] Multimodal model — overriding to Qwen3NextForCausalLM"
+        VLLM_ARGS+=(--hf-overrides '{"architectures": ["Qwen3NextForCausalLM"]}')
     fi
 
     # --- Start vLLM server for this model ---
