@@ -1,10 +1,8 @@
 #!/bin/bash
-# Phase 3: Run top-5 Borda features (15 conditions) with 5 parallel processes.
+# Phase 3: Run top-5 Borda features (15 conditions) as 15 parallel processes.
 #
-# Groups conditions by feature so each process handles all 3 formats
-# (neutral, directional, comparative) sequentially. This keeps total
-# concurrent processes at 5 + their worker subprocesses (~10 total),
-# avoiding the school's per-user process/thread limits.
+# Each condition runs as its own process (5 seeds sequentially within).
+# Skips seed-runs that already have >= BUDGET candidates in their log.
 #
 # Top 5 by Borda count:
 #   1. avg_improvement           (Borda: 3)
@@ -22,6 +20,9 @@ set -uo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 cd "$SCRIPT_DIR"
+
+RESULTS_DIR="${PHASE3_RESULTS_DIR:-results_phase3}"
+BUDGET=100
 
 # Activate conda env
 eval "$(conda shell.bash hook)"
@@ -45,37 +46,75 @@ FEATURES=(
     step_size_autocorrelation
     improvement_spatial_correlation
 )
+FORMATS=(neutral directional comparative)
+
+# Check if a seed-run is already complete (>= BUDGET candidates in log)
+is_complete() {
+    local cond="$1" seed="$2"
+    local seed_dir="$RESULTS_DIR/$cond/seed-$seed"
+    local log=$(ls "$seed_dir"/run-*/log.jsonl 2>/dev/null | head -1)
+    [ -z "$log" ] && return 1
+    local count=$(wc -l < "$log")
+    [ "$count" -ge "$BUDGET" ]
+}
 
 pids=()
+cond_names=()
+
 for feat in "${FEATURES[@]}"; do
-    echo "[$(date '+%H:%M:%S')] Starting feature group: $feat (neutral + directional + comparative)"
-    python run_phase3.py \
-        "neutral-${feat}" \
-        "directional-${feat}" \
-        "comparative-${feat}" \
-        > "logs/phase3_${feat}.log" 2>&1 &
-    pids+=($!)
-    sleep 3  # stagger API calls slightly
+    for fmt in "${FORMATS[@]}"; do
+        cond="${fmt}-${feat}"
+
+        # Check if this condition exists (e.g. comparative-longest_no_improvement_streak is excluded)
+        python -c "from experiments.phase3_config import get_conditions; assert '${cond}' in get_conditions()" 2>/dev/null
+        if [ $? -ne 0 ]; then
+            echo "[$(date '+%H:%M:%S')] SKIP $cond (not in condition registry)"
+            continue
+        fi
+
+        # Check which seeds still need running
+        seeds_to_run=()
+        for seed in 0 1 2 3 4; do
+            if is_complete "$cond" "$seed"; then
+                echo "[$(date '+%H:%M:%S')] SKIP $cond seed-$seed (already complete)"
+            else
+                seeds_to_run+=($seed)
+            fi
+        done
+
+        if [ ${#seeds_to_run[@]} -eq 0 ]; then
+            echo "[$(date '+%H:%M:%S')] SKIP $cond (all seeds complete)"
+            continue
+        fi
+
+        seeds_arg="${seeds_to_run[*]}"
+        echo "[$(date '+%H:%M:%S')] Starting $cond  seeds=[${seeds_arg}]"
+        python run_phase3.py "$cond" --seeds ${seeds_arg} \
+            > "logs/phase3_${cond}.log" 2>&1 &
+        pids+=($!)
+        cond_names+=("$cond")
+        sleep 2  # stagger API calls
+    done
 done
 
 echo ""
-echo "Launched ${#pids[@]} feature groups (15 conditions total): ${pids[*]}"
-echo "Monitor with: tail -f logs/phase3_<feature>.log"
+echo "Launched ${#pids[@]} processes: ${cond_names[*]}"
+echo "Monitor: tail -f logs/phase3_<condition>.log"
 echo "Waiting for all to finish..."
 
 failed=0
 for i in "${!pids[@]}"; do
     if ! wait "${pids[$i]}"; then
-        echo "[$(date '+%H:%M:%S')] FAILED: ${FEATURES[$i]} (PID ${pids[$i]})"
+        echo "[$(date '+%H:%M:%S')] FAILED: ${cond_names[$i]} (PID ${pids[$i]})"
         ((failed++))
     else
-        echo "[$(date '+%H:%M:%S')] Done: ${FEATURES[$i]}"
+        echo "[$(date '+%H:%M:%S')] Done: ${cond_names[$i]}"
     fi
 done
 
 echo ""
 if [ $failed -eq 0 ]; then
-    echo "[$(date '+%H:%M:%S')] All 5 feature groups completed successfully."
+    echo "[$(date '+%H:%M:%S')] All ${#pids[@]} conditions completed successfully."
 else
     echo "[$(date '+%H:%M:%S')] Finished with $failed/${#pids[@]} failures."
 fi
