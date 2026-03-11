@@ -2,14 +2,15 @@
 #SBATCH --partition=L40s_students
 #SBATCH --gres=gpu:0
 #SBATCH --time=3-00:00:00
-#SBATCH --cpus-per-task=16
-#SBATCH --mem=32G
+#SBATCH --cpus-per-task=48
+#SBATCH --mem=64G
 #SBATCH --job-name=p3-all
 #SBATCH --output=logs/slurm/phase3-all-%j.out
 #SBATCH --error=logs/slurm/phase3-all-%j.err
 #
-# Run all 15 Phase 3 top-5 conditions in parallel within a single SLURM job.
-# Each condition runs as a background process (5 seeds sequentially).
+# Run all Phase 3 top-5 conditions with ALL seeds in parallel.
+# Each (condition, seed) pair is its own background process.
+# 15 conditions × 5 seeds = up to 75 processes (mostly API-waiting).
 # No GPU needed — Gemini API only.
 #
 # Usage:
@@ -24,7 +25,7 @@ BUDGET=100
 
 NODE=$(hostname)
 echo "========================================="
-echo "Phase 3 — All top-5 conditions"
+echo "Phase 3 — All top-5 conditions (all seeds parallel)"
 echo "  Node:  $NODE"
 echo "  CPUs:  $SLURM_CPUS_PER_TASK"
 echo "  Job:   $SLURM_JOB_ID"
@@ -56,7 +57,7 @@ CONDITIONS=(
     neutral-improvement_spatial_correlation directional-improvement_spatial_correlation comparative-improvement_spatial_correlation
 )
 
-# --- Check which seeds need running per condition ---
+# --- Check if a seed-run is already complete ---
 is_complete() {
     local cond="$1" seed="$2"
     local seed_dir="$RESULTS_DIR/$cond/seed-$seed"
@@ -68,52 +69,44 @@ is_complete() {
     [ "$count" -ge "$BUDGET" ]
 }
 
-# --- Launch all conditions in parallel ---
+# --- Launch every (condition, seed) pair in parallel ---
 pids=()
-cond_names=()
+labels=()
 
 for cond in "${CONDITIONS[@]}"; do
-    seeds_to_run=()
     for seed in 0 1 2 3 4; do
         if is_complete "$cond" "$seed"; then
             echo "SKIP $cond seed-$seed (already complete)"
-        else
-            seeds_to_run+=($seed)
+            continue
         fi
+
+        echo "[$(date '+%H:%M:%S')] Starting $cond seed-$seed"
+        python run_phase3.py "$cond" --seeds $seed \
+            > "logs/slurm/phase3-${cond}-s${seed}-${SLURM_JOB_ID}.log" 2>&1 &
+        pids+=($!)
+        labels+=("$cond/seed-$seed")
+        sleep 1  # stagger API calls
     done
-
-    if [ ${#seeds_to_run[@]} -eq 0 ]; then
-        echo "SKIP $cond (all seeds complete)"
-        continue
-    fi
-
-    seeds_arg="${seeds_to_run[*]}"
-    echo "[$(date '+%H:%M:%S')] Starting $cond  seeds=[$seeds_arg]"
-    python run_phase3.py "$cond" --seeds ${seeds_arg} \
-        > "logs/slurm/phase3-${cond}-${SLURM_JOB_ID}.log" 2>&1 &
-    pids+=($!)
-    cond_names+=("$cond")
-    sleep 2
 done
 
 echo ""
-echo "Launched ${#pids[@]} conditions in parallel"
+echo "Launched ${#pids[@]} processes (condition × seed pairs)"
 echo ""
 
 # --- Wait for all ---
 failed=0
 for i in "${!pids[@]}"; do
     if ! wait "${pids[$i]}"; then
-        echo "[$(date '+%H:%M:%S')] FAILED: ${cond_names[$i]}"
+        echo "[$(date '+%H:%M:%S')] FAILED: ${labels[$i]}"
         ((failed++))
     else
-        echo "[$(date '+%H:%M:%S')] Done: ${cond_names[$i]}"
+        echo "[$(date '+%H:%M:%S')] Done: ${labels[$i]}"
     fi
 done
 
 echo ""
 echo "========================================="
-echo "  Completed: $((${#pids[@]} - failed))/${#pids[@]} conditions"
+echo "  Completed: $((${#pids[@]} - failed))/${#pids[@]} seed-runs"
 echo "  Failed:    $failed"
 echo "  End:       $(date)"
 echo "========================================="
