@@ -141,7 +141,7 @@ Normalized Permutation Entropy (PE) of the fitness time series.
 - **Package:** `antropy.perm_entropy()`
 - **Cost:** O(T * D!), ~1ms per trajectory
 
-### 2.3 `fitness_autocorrelation_lag1`
+### 2.3 `fitness_autocorrelation`
 
 Lag-1 autocorrelation of the raw fitness time series.
 
@@ -149,7 +149,7 @@ Lag-1 autocorrelation of the raw fitness time series.
 > Tell the Difference." Biological Cybernetics, 63, 325-336.
 
     rho(s) = Cov(f(t), f(t+s)) / Var(f(t))
-    fitness_autocorrelation_lag1 = rho(1)
+    fitness_autocorrelation = rho(1)
 
 - **Measures:** Short-range fitness correlation. rho(1) near 1 = smooth, exploitative.
   Near 0 = uncorrelated. Negative = anti-persistent oscillation.
@@ -293,7 +293,7 @@ Range (max-min) of fitness values in first/last 25%, and their ratio.
 
 ---
 
-## Category 5: Novel Features (Not from Prior Work)
+## Category 5: Novel Features
 
 These are features we define specifically for this thesis. They capture aspects of
 algorithm behavior not addressed by any existing metric in the BBOB literature.

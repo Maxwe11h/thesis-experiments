@@ -203,12 +203,13 @@ class MaBBOBProblem(MA_BBOB):
 
         auc_mean = np.mean(aucs)
         auc_std = np.std(aucs)
-        avg_met = self._average_metrics(all_metrics)
+        avg_met, std_met = self._summarise_metrics(all_metrics)
 
-        feedback = self.make_feedback(algorithm_name, auc_mean, auc_std, avg_met)
+        feedback = self.make_feedback(algorithm_name, auc_mean, auc_std, avg_met, std_met)
         solution.set_scores(auc_mean, feedback)
         solution.add_metadata("aucs", aucs)
         solution.add_metadata("behavioral_features", avg_met)
+        solution.add_metadata("behavioral_features_std", std_met)
         solution.add_metadata("evaluation_time_s", round(_eval_time, 3))
 
         return solution
@@ -228,8 +229,11 @@ class MaBBOBProblem(MA_BBOB):
         }
 
     @staticmethod
-    def _average_metrics(metrics_list):
+    def _summarise_metrics(metrics_list):
+        """Return (mean_dict, std_dict) across instance×seed evaluations."""
         if not metrics_list:
-            return {}
+            return {}, {}
         keys = metrics_list[0].keys()
-        return {k: np.mean([m[k] for m in metrics_list]) for k in keys}
+        means = {k: np.mean([m[k] for m in metrics_list]) for k in keys}
+        stds = {k: np.std([m[k] for m in metrics_list]) for k in keys}
+        return means, stds

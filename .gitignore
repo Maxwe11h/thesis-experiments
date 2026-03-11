@@ -22,6 +22,8 @@ env/
 
 # Experiment results (large, generated)
 results/
+results_phase1/
+results_phase3/
 
 # Planning notes (personal)
 .planning/
