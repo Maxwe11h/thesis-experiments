@@ -1,0 +1,464 @@
+% =============================================================================
+% Chapter 3: Behavioural Feature Design
+% =============================================================================
+
+\chapter{Behavioural Feature Design}
+\label{ch:features}
+
+This section presents the 32 behavioural features used to characterise algorithm
+trajectories.  Eleven features are inherited from the BLADE framework
+\cite{vanStein2025BLADE, vanStein2025Behaviour}; the remaining 21 are introduced
+in this thesis.  Of those 23, six are entirely novel metrics that have not
+appeared in prior optimisation literature.  These novel features constitute a
+central contribution of this work: they capture aspects of search dynamics ---
+momentum, burstiness, plateau structure, and dimensional heterogeneity, that
+existing metrics overlook.
+
+Every feature is computed from a single trajectory. A trajectory is represented by a DataFrame of $T = 10{,}000$
+function evaluations in $d = 5$ dimensions with bounds $[-5, 5]$.  Columns
+consist of the evaluation index, the raw objective value~$y_t$, and the decision
+variables $x_t^{(0)}, \ldots, x_t^{(d-1)}$.  We denote the best-so-far fitness
+at evaluation~$t$ as $f^*_t = \min_{s \le t} y_s$.
+
+% ============================================================================
+\section{Design Principles}
+\label{sec:features:principles}
+
+Four criteria guided the selection and design of behavioural features.
+
+\begin{enumerate}
+  \item \textbf{Computational cheapness.} Feature extraction must not dominate experiment runtime. A single MA-BBOB evaluation already costs 30--120\,s (running the candidate algorithm 50 times across 10 problems with 5 instances each). Behavioural features should add at most a small fraction of that budget.
+
+  \item \textbf{Distinctness.} Each feature should capture a dimension of behaviour not already covered by other features. We enforce this during feature selection by removing any feature whose Pearson correlation with a higher-ranked feature exceeds $|\rho| > 0.8$.
+
+  \item \textbf{Interpretability for LLM feedback.} Features are reported to the language model as part of the behavioural feedback string. They must therefore carry clear, concise semantics that an LLM can act on. For instance, \emph{``your step sizes are erratic''} is actionable, while \emph{``your Lempel--Ziv complexity is 0.73''} is not, unless accompanied by a description.
+
+  \item \textbf{Discrimination.} Features should separate high-performing from low-performing algorithms. We quantify this via Spearman correlation with AOCC and Kolmogorov--Smirnov effect size between the top-25\% and bottom-25\% candidates.
+\end{enumerate}
+
+% ============================================================================
+\section{Existing BLADE Metrics}
+\label{sec:features:blade}
+
+BLADE ships with eleven behavioural metrics introduced by van~Stein et
+al.~\cite{vanStein2025Behaviour, vanStein2025BLADE}.  We group them into four
+functional categories.
+
+\paragraph{Exploration and diversity.}
+\begin{itemize}
+  \item \texttt{avg\_nearest\_neighbor\_distance}: mean Euclidean distance between each evaluated point and its predecessor, quantifying how much the search covers new territory at each step.
+  \item \texttt{dispersion}: maximum gap in search-space coverage (via KD-tree). Large dispersion indicates unvisited regions.
+  \item \texttt{avg\_exploration\_pct}: chunk-based measure of within-chunk variance relative to a random baseline. Its complement \texttt{avg\_exploitation\_pct} is also recorded.
+\end{itemize}
+
+\paragraph{Exploitation and intensification.}
+\begin{itemize}
+  \item \texttt{avg\_distance\_to\_best}: mean distance from each evaluation to the best-so-far solution.
+  \item \texttt{intensification\_ratio}: fraction of evaluations within radius $r = 0.1 \times (\mathit{ub} - \mathit{lb})$ of the final best, defined as $I_r = T^{-1}\sum_{t}\mathbf{1}[\lVert x_t - x_{\mathrm{best}} \rVert < r]$. High values indicate strong local exploitation.
+  \item \texttt{avg\_exploitation\_pct}: complement of exploration percentage.
+\end{itemize}
+
+\paragraph{Convergence.}
+\begin{itemize}
+  \item \texttt{average\_convergence\_rate}: geometric mean of successive best-so-far error ratios.
+  \item \texttt{avg\_improvement}: mean fitness improvement on steps that update the best-so-far, $\bar{\Delta}_f = |\mathcal{I}|^{-1}\sum_{t \in \mathcal{I}}(f^*_{t-1} - y_t)$, where $\mathcal{I} = \{t : y_t < f^*_{t-1}\}$.
+  \item \texttt{success\_rate}: fraction $|\mathcal{I}| / T$ of evaluations that improve the best-so-far.
+\end{itemize}
+
+\paragraph{Stagnation.}
+\begin{itemize}
+  \item \texttt{longest\_no\_improvement\_streak}: length of the longest consecutive run without best-so-far improvement. Streaks of several thousand (out of $T = 10{,}000$) indicate the algorithm has effectively stopped progressing.
+  \item \texttt{last\_improvement\_fraction}: how late in the budget the final improvement occurs, normalised to $[0, 1]$.
+\end{itemize}
+
+% ============================================================================
+\section{Step-Size and Movement Dynamics}
+\label{sec:features:stepsize}
+
+The first group of new features characterises the basic mechanics of how a
+candidate algorithm moves through decision space.  All four are standard
+trajectory analysis measures catalogued in the meta-feature survey by Cenikj et
+al.~\cite{cenikj2026features} We include them because BLADE does not compute
+them.
+
+Let $s_t = \lVert x_{t+1} - x_t \rVert$ denote the Euclidean step size at
+evaluation~$t$.
+
+\paragraph{\texttt{step\_size\_mean}.}
+The mean step size across the trajectory:
+\begin{equation}
+\label{eq:step_mean}
+  \bar{s} = \frac{1}{T-1}\sum_{t=1}^{T-1} s_t.
+\end{equation}
+Large values of the mean step size~$\bar{s}$ indicate broad exploration.
+Small values indicate local exploitation.
+
+\paragraph{\texttt{step\_size\_std}.}
+The standard deviation of step sizes:
+\begin{equation}
+\label{eq:step_std}
+  \sigma_s = \sqrt{\frac{1}{T-2}\sum_{t=1}^{T-1}
+    \bigl(s_t - \bar{s}\bigr)^2}.
+\end{equation}
+High step-size standard deviation~$\sigma_s$ signals alternating
+exploration and exploitation phases. Low variability signals a uniform
+step-size regime throughout the run.
+
+\paragraph{\texttt{step\_size\_trend}.}
+The ordinary least-squares slope of step size against evaluation index:
+\begin{equation}
+\label{eq:step_trend}
+  \beta_s
+    = \frac{\sum_{t}(t - \bar{t})(s_t - \bar{s})}
+           {\sum_{t}(t - \bar{t})^2}.
+\end{equation}
+A negative step-size trend~$\beta_s$ indicates the classic convergence
+pattern of contracting step sizes. A positive slope suggests the
+algorithm diverges over time.
+
+\paragraph{\texttt{directional\_persistence}.}
+The mean cosine similarity between consecutive displacement vectors
+$d_t = x_{t+1} - x_t$:
+\begin{equation}
+\label{eq:dir_persist}
+  \phi = \frac{1}{T-2}\sum_{t=2}^{T-1}
+    \frac{d_t \cdot d_{t-1}}
+         {\lVert d_t \rVert \, \lVert d_{t-1} \rVert}.
+\end{equation}
+Values of the directional persistence~$\phi$ near~$+1$ indicate that the
+search maintains a consistent heading
+(gradient-following behaviour). Values near~$0$ indicate a random walk.
+Negative values indicate anti-persistent zigzag motion.
+
+% ============================================================================
+\section{Information-Theoretic Features}
+\label{sec:features:infotheo}
+
+The four features in this category apply established time-series complexity
+measures to the raw fitness sequence $\{y_1, \ldots, y_T\}$.  While each
+measure is well-known in signal processing and physics, their application to
+optimisation algorithm fitness trajectories on BBOB benchmarks is new.
+
+\paragraph{\texttt{fitness\_sample\_entropy}.}
+Sample Entropy (SampEn) quantifies the regularity of the fitness
+series~\cite{richman2000sampen}.  Given embedding dimension~$m$ and tolerance
+$r = 0.2 \cdot \mathrm{std}(y)$, it counts the conditional probability that
+sequences matching for $m$~consecutive values still match at length $m+1$:
+\begin{equation}
+\label{eq:sampen}
+  \mathrm{SampEn}(m, r)
+    = -\ln \frac{A^m(r)}{B^m(r)},
+\end{equation}
+where $B^m$ is the number of template matches of length~$m$ and $A^m$ the
+number that also match at length $m+1$ (excluding self-matches).  Low SampEn
+indicates a repetitive, self-similar convergence pattern. High SampEn indicates
+complex, unpredictable dynamics.  We use $m = 2$ and subsample every 10th
+evaluation ($N = 1{,}000$) to reduce the $O(N^2 m)$ cost from ${\sim}30$\,s to
+${\sim}0.3$\,s per trajectory.
+
+\paragraph{\texttt{fitness\_permutation\_entropy}.}
+Normalised Permutation Entropy (PE) maps the fitness series to a sequence of
+ordinal patterns and measures their distributional uniformity~\cite{bandt2002permutation}.
+Each window of $D$~consecutive values is replaced by its rank permutation
+$\pi \in S_D$, and PE is the Shannon entropy of the permutation distribution
+normalised by $\log_2(D!)$:
+\begin{equation}
+\label{eq:pe}
+  \mathrm{PE}(D)
+    = -\frac{1}{\log_2(D!)}\sum_{\pi \in S_D} p(\pi) \log_2 p(\pi).
+\end{equation}
+We use $D = 5$, giving $D! = 120$ possible patterns against $T = 10{,}000$
+data points.  $\mathrm{PE} \approx 0$ corresponds to perfectly monotone
+convergence. $\mathrm{PE} \approx 1$ to a completely random sequence.
+
+\paragraph{\texttt{fitness\_autocorrelation}.}
+The lag-1 autocorrelation of the raw fitness series, following Weinberger's
+framework for fitness landscape correlation structure~\cite{weinberger1990fitness}:
+\begin{equation}
+\label{eq:fitac}
+  \rho_y(1)
+    = \frac{\sum_{t=1}^{T-1}(y_t - \bar{y})(y_{t+1} - \bar{y})}
+           {\sum_{t=1}^{T}(y_t - \bar{y})^2}.
+\end{equation}
+Importantly, while Weinberger's autocorrelation has long been used to
+characterise landscapes via \emph{separate} random walks, it has not previously
+been computed on the algorithm's \emph{own} trajectory on BBOB.  High positive
+$\rho_y(1)$ indicates smooth, locally exploitative search. Values near zero
+indicate the algorithm jumps between unrelated fitness regions.
+
+\paragraph{\texttt{fitness\_lempel\_ziv\_complexity}.}
+Normalised Lempel--Ziv complexity (LZC) measures the rate at which new
+patterns appear in a binarised version of the fitness
+series~\cite{lempel1976complexity}.  The binarisation maps each step to
+$b_t = \mathbf{1}[y_{t+1} < y_t]$ (improvement or not), yielding a binary
+string.  LZ76 parsing counts the number of distinct substrings~$c(N)$, and the
+normalised complexity is:
+\begin{equation}
+\label{eq:lzc}
+  \mathrm{LZC}_n = \frac{c(N)}{N / \log_2 N}.
+\end{equation}
+$\mathrm{LZC}_n \approx 1$ indicates a random improvement/stagnation pattern.
+$\mathrm{LZC}_n \approx 0$ indicates highly repetitive structure (e.g.,
+long unbroken stagnation followed by a burst of improvements).
+
+% ============================================================================
+\section{Adapted Population Dynamics}
+\label{sec:features:dynamo}
+
+Cenikj et al.~\cite{cenikj2023dynamorep} introduced DynamoRep, a set of
+trajectory-based features that characterise how a population's spatial and
+fitness distributions change across generations.  Their features assume a
+population-based algorithm with many individuals per generation.  In our
+$(1{+}1)$-ES setting the population size is~1, so per-generation statistics
+are undefined.  We adapt the DynamoRep idea by comparing the first 25\% of
+evaluations (\emph{early}) with the last 25\% (\emph{late}), treating each
+window as a proxy for the population at that stage of the search.
+
+Let $X_{\mathrm{early}} = \{x_t : t \le T/4\}$ and
+$X_{\mathrm{late}} = \{x_t : t > 3T/4\}$.
+
+\paragraph{\texttt{x\_spread\_early} and \texttt{x\_spread\_late}.}
+Mean per-dimension standard deviation of decision variables in the early and
+late windows, respectively:
+\begin{equation}
+\label{eq:spread}
+  S_{\mathrm{E}}
+    = \frac{1}{d}\sum_{j=0}^{d-1}
+      \mathrm{std}\!\bigl(\{x_t^{(j)} : t \le T/4\}\bigr).
+\end{equation}
+The late spread~$S_{\mathrm{L}}$ is defined identically over $t > 3T/4$.
+High early spread~$S_{\mathrm{E}}$ indicates broad initial exploration.
+Low~$S_{\mathrm{L}}$ indicates the search has converged to a small
+region.
+
+\paragraph{\texttt{spread\_ratio}.}
+The ratio of late to early spread:
+\begin{equation}
+\label{eq:spread_ratio}
+  R_S = S_{\mathrm{L}} \;/\; S_{\mathrm{E}}.
+\end{equation}
+Values of the spread ratio~$R_S$ below~1 indicate the algorithm narrows
+its search over time (the expected convergence pattern). Values above~1
+indicate late-stage diversification.
+
+\paragraph{\texttt{centroid\_drift}.}
+The Euclidean distance between the centroids of the early and late windows:
+\begin{equation}
+\label{eq:centroid}
+  D_c
+    = \bigl\lVert \bar{x}_{\mathrm{early}}
+      - \bar{x}_{\mathrm{late}} \bigr\rVert.
+\end{equation}
+Large centroid drift~$D_c$ means the algorithm relocated its search
+centre during the run it discovered a new promising region.  Small drift means the algorithm stayed
+local throughout.
+
+\paragraph{\texttt{f\_range\_early}, \texttt{f\_range\_late}, and
+\texttt{f\_range\_ratio}.}
+The range (maximum minus minimum) of raw fitness values in each window, and
+their ratio:
+\begin{align}
+\label{eq:frange}
+  F_{\mathrm{E}} &= \max_{t \le T/4} y_t
+                    - \min_{t \le T/4} y_t, \\
+  F_{\mathrm{L}} &= \max_{t > 3T/4} y_t
+                    - \min_{t > 3T/4} y_t, \\
+  R_F            &= F_{\mathrm{L}} \;/\; F_{\mathrm{E}}.
+\end{align}
+Here $F_{\mathrm{E}}$ and $F_{\mathrm{L}}$ are the early and late
+fitness ranges, and $R_F$ is their ratio.
+A shrinking fitness range ($R_F < 1$) indicates the algorithm is
+converging
+to a narrow fitness band near the optimum. A persistent or growing range
+suggests the algorithm still samples points of widely varying quality.
+
+% ============================================================================
+\section{Novel Features}
+\label{sec:features:novel}
+
+The six features in this section are designed specifically for this thesis.  Each attempts to address a gap in the existing behavioural feature landscape that is not covered by prior defined metrics.  Together, they form one of the main contributions of this work.
+
+\paragraph{\texttt{step\_size\_autocorrelation}.}
+\label{sec:features:novel:ssac}
+
+Autocorrelation of fitness values is a well-studied landscape descriptor
+\cite{weinberger1990fitness}, and we include it above as
+\texttt{fitness\_autocorrelation}.  But the
+autocorrelation of \emph{step sizes}, measuring whether the algorithm's
+movement magnitude is self-correlated over time, has not been applied
+as a behavioural feature.
+
+Let $s_t = \lVert x_{t+1} - x_t \rVert$ denote the step size at evaluation~$t$.
+The lag-1 autocorrelation of the step-size series is:
+\begin{equation}
+\label{eq:ssac}
+  \rho_s
+    = \frac{\sum_{t=1}^{T-2}(s_t - \bar{s})(s_{t+1} - \bar{s})}
+           {\sum_{t=1}^{T-1}(s_t - \bar{s})^2}.
+\end{equation}
+
+The step-size autocorrelation $\rho_s$ captures \emph{search momentum}. High positive autocorrelation (${\sim}0.9$) means the algorithm takes similarly-sized steps consecutively, characteristic of smooth step-size adaptation mechanisms such as the $1/5$-th success rule or CMA-ES's path-length control. Low or negative autocorrelation indicates erratic step-size variation, typical of random restarts or poorly
+tuned mutation operators.
+
+\paragraph{\texttt{fitness\_plateau\_fraction}.}
+\label{sec:features:novel:plateau}
+
+Existing stagnation metrics in BLADE (\texttt{longest\_no\_improvement\_streak},
+\texttt{last\_improvement\_fraction}) measure plateaus in the \emph{best-so-far}
+curve.  This conflates two distinct phenomena, the algorithm may be sampling diverse points that happen to be worse (active exploration), or it may be stuck in a genuinely flat region of the landscape.  We disentangle these by measuring plateaus in the \emph{raw} fitness sequence.
+
+Let $\epsilon = 10^{-8} \cdot (\max_t y_t - \min_t y_t)$ be a relative
+tolerance.  The plateau fraction is:
+\begin{equation}
+\label{eq:plateau}
+  P_{\mathrm{flat}}
+    = \frac{1}{T-1}\sum_{t=1}^{T-1}
+      \mathbf{1}\!\bigl[|y_{t+1} - y_t| < \epsilon\bigr].
+\end{equation}
+
+High plateau fraction~$P_{\mathrm{flat}}$ means the algorithm repeatedly evaluates points with nearly identical fitness, indicating it is trapped in or deliberately exploiting a flat region.  This differs fundamentally from best-so-far stagnation, an algorithm can have a long no-improvement streak while still sampling diverse fitness values (because all are worse than the incumbent).  Conversely, a high plateau fraction with a short no-improvement streak indicates the algorithm has found a flat basin and is refining within it.
+
+\paragraph{\texttt{half\_convergence\_time}.}
+\label{sec:features:novel:halftime}
+
+While \texttt{average\_convergence\_rate} captures the geometric mean of
+per-step convergence ratios, it says nothing about when during the budget the
+bulk of improvement occurs.  Two algorithms can have the same convergence rate
+but very different temporal profiles. One may improve rapidly in the first 10\% of evaluations and then plateau, while another may start slowly but achieve a late breakthrough.
+
+The half-convergence time measures when 50\% of the total best-so-far
+improvement is reached:
+\begin{equation}
+\label{eq:halftime}
+  t_{1/2}
+    = \frac{1}{T-1}\min\!\bigl\{t : f^*_t \le f^*_1
+      - \tfrac{1}{2}(f^*_1 - f^*_T)\bigr\}.
+\end{equation}
+
+Low values of the half-convergence time~$t_{1/2}$
+(${\sim}0.001\text{--}0.01$) indicate rapid early convergence
+followed by slow refinement. High values (${\sim}0.5\text{--}1.0$) indicate
+a slow start with late breakthroughs.  The feature returns~$1.0$ when no
+improvement occurs.
+
+\paragraph{\texttt{improvement\_spatial\_correlation}.}
+\label{sec:features:novel:impspatial}
+
+No prior feature relates the \emph{distance} an algorithm travels to the
+\emph{magnitude} of the improvement it achieves.  We define the improvement
+spatial correlation as the Pearson correlation between step size and
+improvement magnitude, restricted to improving steps:
+\begin{align}
+\label{eq:impspatial}
+  \mathcal{I} &= \{t : y_t < f^*_{t-1}\}, \nonumber \\
+  r_{\mathrm{IS}}
+    &= r_{\mathrm{Pearson}}\!\bigl(
+         \{s_{t-1}\}_{t \in \mathcal{I}},\;
+         \{f^*_{t-1} - y_t\}_{t \in \mathcal{I}}
+       \bigr).
+\end{align}
+
+Positive values of the improvement spatial
+correlation~$r_{\mathrm{IS}}$ indicate that large jumps yield large
+improvements.
+Negative values indicate that small, local steps produce the biggest gains.  Values near zero mean improvement
+magnitude is independent of the distance travelled.  This feature separates
+algorithms that improve through directed long-range moves from those that
+improve through local refinement.
+
+\paragraph{\texttt{improvement\_burstiness}.}
+\label{sec:features:novel:burst}
+
+Barab\'asi~\cite{barabasi2005bursts} showed that many natural processes exhibit bursty dynamics. Events tend to cluster in time rather than arriving at a steady rate.
+We apply this idea to the temporal pattern of fitness improvements.
+
+Let $\mathcal{I} = \{t_1, t_2, \ldots, t_k\}$ be the sorted indices of
+improving evaluations, and $\tau_i = t_{i+1} - t_i$ the inter-improvement
+intervals.  The improvement burstiness is the coefficient of variation of these
+intervals:
+\begin{equation}
+\label{eq:burst}
+  B_{\mathrm{imp}}
+    = \frac{\mathrm{std}(\tau)}{\mathrm{mean}(\tau)}.
+\end{equation}
+
+The improvement burstiness~$B_{\mathrm{imp}}$ is a coefficient of
+variation (CV).  Values near~1 correspond to Poisson-like random
+improvements.  CV $\gg 1$ indicates bursty dynamics where improvements arrive
+in clusters separated by long stagnation phases.  CV $\ll 1$ indicates
+metronomic, evenly-spaced improvements.  This feature characterises the
+temporal \emph{texture} of the search process. Does the algorithm make steady
+incremental progress, or does it alternate between productive bursts and idle
+periods?
+
+\paragraph{\texttt{dimension\_convergence\_heterogeneity}.}
+\label{sec:features:novel:dimhet}
+
+Standard convergence metrics (spread ratio, step-size trend) aggregate across
+all dimensions.  They cannot detect whether the algorithm converges uniformly
+in all dimensions or locks in on some dimensions while continuing to explore
+others, a pattern that reflects sensitivity to problem separability.
+
+For each dimension~$j$, we compute the range shrinkage ratio between the early
+and late windows:
+\begin{equation}
+\label{eq:shrinkage}
+  \sigma_j
+    = \frac{\max_{t > 3T/4} x_t^{(j)} - \min_{t > 3T/4} x_t^{(j)}}
+           {\max_{t \le T/4} x_t^{(j)} - \min_{t \le T/4} x_t^{(j)}}.
+\end{equation}
+The convergence heterogeneity is the standard deviation of these ratios across
+dimensions:
+\begin{equation}
+\label{eq:dimhet}
+  H_{\mathrm{dim}}
+    = \mathrm{std}\!\bigl(\sigma_0, \sigma_1,
+      \ldots, \sigma_{d-1}\bigr).
+\end{equation}
+
+Low dimension convergence heterogeneity~$H_{\mathrm{dim}}$ means all
+dimensions converge at a similar rate, so the
+algorithm treats the problem as isotropic.  High heterogeneity means some
+dimensions converge tightly while others remain spread, suggesting the algorithm
+identifies and exploits coordinate-wise structure.
+
+% ============================================================================
+\section{Computational Cost Analysis}
+\label{sec:features:cost}
+
+\Cref{tab:feature_cost} summarises the computational cost of each feature
+category.  Each candidate algorithm is evaluated on 50 MA-BBOB trajectories
+(10 problem instances $\times$ 5 seeds), so per-candidate cost is $50\times$
+the per-trajectory cost. The dominant cost is the existing BLADE metrics (which build a KD-tree for
+dispersion) and sample entropy (which is $O(N^2)$ even after subsampling).
+The 17 features from categories 1, 4, and~5 add under 100\,ms per candidate in
+total.
+
+\begin{table}[t]
+  \centering
+  \caption{Computational cost of behavioural feature extraction.  All timings
+    are measured on a single CPU core for $T = 10{,}000$ evaluations in $d = 5$
+    dimensions.  SampEn uses subsampled trajectories ($N = 1{,}000$).}
+  \label{tab:feature_cost}
+  \footnotesize
+  \begin{tabular}{@{}lrrr@{}}
+    \toprule
+    Category & \# & Per traj. & Per cand. \\
+    \midrule
+    Existing (BLADE)            & 11 & $\sim$1--2\,s   & $\sim$1--2\,min \\
+    Step-size dynamics          &  4 & $\sim$0.6\,ms   & $\sim$30\,ms    \\
+    Information-theoretic       &  4 & $\sim$0.6\,s    & $\sim$30\,s     \\
+    Adapted pop.\ dynamics      &  7 & $\sim$0.5\,ms   & $\sim$25\,ms    \\
+    Novel features              &  6 & $\sim$0.9\,ms   & $\sim$45\,ms    \\
+    \midrule
+    \textbf{Total}              & \textbf{32} & $\sim$\textbf{1.6--2.6\,s} & $\sim$\textbf{1.5--2.5\,min} \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+Relative to the MA-BBOB evaluation itself (30--120\,s per candidate to run
+the algorithm 50 times), the total feature extraction overhead of 1.5--2.5
+minutes represents a modest addition.  Over a full experimental run of 100
+candidates, this amounts to roughly 2.5--4 hours of feature extraction
+compared to 1--3 hours of algorithm evaluation, a ratio that is acceptable
+given the diagnostic value the features provide.

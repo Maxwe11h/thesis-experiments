@@ -1,0 +1,79 @@
+% =============================================================================
+% Chapter 6: Discussion
+% =============================================================================
+
+\chapter{Discussion}
+\label{ch:discussion}
+
+The results of the feedback format screening reveal a clear pattern: neutral behavioural feedback slightly improves or maintains performance relative to vanilla AOCC-only feedback, while prescriptive formats, both directional and comparative, degrade it. This section interprets these findings, contextualises them within the broader AAD landscape, and identifies their implications and limitations.
+
+% ---------------------------------------------------------------------------
+\section{The Indirect Mapping Problem}
+\label{sec:disc-indirect}
+
+The central finding of this thesis is that the LLM \emph{responds} to behavioural feedback, producing behaviourally different algorithms depending on the feedback format (16 of 19 AOCC-matched comparisons are statistically significant), but it cannot reliably translate high-level behavioural objectives into the right code changes. Steering accuracy across feature--quality-band combinations is approximately 50\% for both directional and comparative formats: essentially a coin flip.
+
+This is not a failure of the LLM's comprehension. The directions given are empirically correct (verified against Spearman correlations from Stage~2), and the LLM clearly adjusts its output in response. The problem is structural. The mapping from source code changes to emergent behavioural properties is too indirect for prescriptive guidance to be reliably actionable.
+
+Consider an analogy. Telling a chef ``increase the Maillard reaction'' is factually correct advice for improving flavour, and the chef understands the concept. But the Maillard reaction is an emergent property of temperature, timing, moisture, pH, and sugar content, and changing any of these in the wrong combination can produce the opposite effect. Similarly, \texttt{step\_size\_autocorrelation} emerges from the interaction between the algorithm's mutation operator, step-size adaptation mechanism, selection pressure, and the problem landscape. The LLM cannot straightforwardly map ``increase step-size autocorrelation'' to a specific code change, because many different code changes could affect this metric in unpredictable ways.
+
+Neutral feedback avoids this trap. By reporting the behavioural observation without prescribing action, it gives the LLM richer context about what happened during the algorithm's execution, context that the AOCC score alone does not convey, while leaving the evolutionary selection pressure as the sole optimisation signal. The LLM can use this context to better understand its algorithms without being pulled toward a potentially counterproductive secondary objective.
+
+% ---------------------------------------------------------------------------
+\section{Behavioural vs.\ Structural Feedback}
+\label{sec:disc-structural}
+
+LLaMEA-SAGE~\cite{vanStein2026LLaMEASAGE} demonstrates that \emph{structural} code features (AST metrics, cyclomatic complexity, function count) can effectively guide algorithm evolution. This raises a natural question: why does structural feedback succeed where behavioural feedback fails?
+
+The answer lies in the \emph{abstraction gap}. Code features are \textbf{proximal}: they describe properties of the LLM's direct output (source code) and correspond to changes the LLM can make directly. ``Increase cyclomatic complexity'' can be achieved by adding conditional branches. ``Reduce function count'' can be achieved by inlining. The mapping from instruction to action is relatively straightforward.
+
+Behavioural features are \textbf{distal}: they emerge from the interaction between the algorithm's code and the optimisation landscape, mediated by execution. ``Increase step-size autocorrelation'' requires the LLM to reason about how its code changes will propagate through the algorithm's execution dynamics to affect a statistical property of the resulting trajectory. This requires understanding not just the code but the causal chain from code to behaviour, a chain that may be long, non-linear, and problem-dependent.
+
+This distinction suggests that behavioural and structural feedback may be \emph{complementary} rather than competing. Code features provide fine-grained, actionable guidance about the algorithm's structure. Behavioural features provide rich observational context about the algorithm's execution dynamics. A combined approach that uses structural feedback for directed guidance and behavioural features for situational awareness could potentially offer the benefits of both.
+
+% ---------------------------------------------------------------------------
+\section{The Steerability Spectrum}
+\label{sec:disc-steerability}
+
+Not all behavioural features are equally resistant to prescriptive steering. The AOCC-matched analysis reveals a spectrum of steerability:
+
+\begin{itemize}
+  \item \texttt{fitness\_plateau\_fraction} is the most steerable feature: comparative feedback consistently pushes it in the correct direction across all four AOCC bands. This feature measures the fraction of evaluations on flat fitness regions, which may map relatively directly to code patterns like convergence tolerances and stopping conditions.
+  \item \texttt{step\_size\_autocorrelation} is the least steerable: it resists direction from both formats across most quality bands. This is a deeply emergent property arising from the interplay of mutation operators, step-size adaptation, and selection pressure.
+\end{itemize}
+
+This pattern suggests a hypothesis: steerability correlates with how directly a behavioural feature maps to identifiable code patterns. Features that reflect localised code decisions (tolerance thresholds, convergence criteria) may be more steerable than features that emerge from global algorithm dynamics (momentum, exploration--exploitation balance). Testing this hypothesis would require a systematic analysis of the causal pathways from code changes to behavioural metrics, which we identify as a direction for future work.
+
+% ---------------------------------------------------------------------------
+\section{Implications for Feedback Design in AAD}
+\label{sec:disc-implications}
+
+Our results suggest practical guidelines for designing feedback mechanisms in LLM-driven algorithm design:
+
+\begin{enumerate}
+  \item \textbf{Include behavioural features as context, not targets.} Neutral reporting enriches the LLM's understanding of its algorithms without creating a counterproductive secondary optimisation objective.
+  \item \textbf{Let selection pressure drive behavioural improvement.} The evolutionary mechanism (keeping high-AOCC algorithms) implicitly selects for good behavioural profiles. Neutral feedback reinforces this by making the behavioural patterns visible to the LLM without overriding the selection signal.
+  \item \textbf{Reserve prescriptive feedback for proximal features.} Directional or comparative guidance may be appropriate for features that the LLM can directly control (code structure, as in SAGE), but is unreliable for emergent behavioural properties.
+  \item \textbf{Consider adaptive feedback.} An open question is whether switching from neutral feedback in early generations (when the algorithm is still forming) to directional feedback in late generations (when refinement is needed) could combine the benefits of both approaches.
+\end{enumerate}
+
+% ---------------------------------------------------------------------------
+\section{Limitations}
+\label{sec:disc-limitations}
+
+Several limitations qualify the generality of our findings.
+
+\paragraph{Statistical power.}
+Each condition is run with 5 independent seeds. While this is sufficient to detect the large effects observed (neutral vs.\ comparative), it provides limited power for detecting smaller differences. For example, the gap between the best neutral condition (AOCC $= 0.907$) and the vanilla baseline (AOCC $= 0.862$) yields only $p > 0.09$. More seeds would be needed to establish whether neutral feedback provides a statistically significant improvement over vanilla.
+
+\paragraph{Single model.}
+Stage~3 uses only Gemini~3 Flash. Different LLMs may respond differently to behavioural feedback. A model with stronger code reasoning capabilities might be better at translating directional guidance into appropriate code changes. Cross-model validation is needed.
+
+\paragraph{Single dimension and budget.}
+All experiments use $d = 5$ dimensions and a fixed evaluation budget of $2000 \times d$. The relationship between behavioural features and algorithm quality may differ at higher dimensionalities or with different budgets.
+
+\paragraph{No Stage 4 full benchmark.}
+The original proposal included a Stage~4 comparing the best feedback configuration against vanilla and SAGE on the full MA-BBOB benchmark across multiple dimensions. Compute constraints prevented this experiment. The screening results in Stage~3 provide strong directional evidence but do not constitute a full benchmark comparison.
+
+\paragraph{Individual features only.}
+Each condition tests a single behavioural feature in isolation. Reporting several features simultaneously might provide a richer behavioural picture that enables more effective steering, or it might overwhelm the LLM with conflicting signals. This remains untested.

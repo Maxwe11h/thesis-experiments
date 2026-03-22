@@ -1,0 +1,128 @@
+%
+% thesis.tex
+% Beyond Scalar Fitness: Behavioural Feedback for LLM-Driven Metaheuristic Evolution
+% Max Harell, LIACS, Leiden University
+%
+
+\documentclass[10pt,a4paper,twocolumn]{article}
+
+% ---------- Page layout ----------
+\usepackage[left=1.7cm,right=1.7cm,top=2cm,bottom=2.3cm,columnsep=0.7cm]{geometry}
+
+% ---------- Typography ----------
+\usepackage{microtype}
+\usepackage[T1]{fontenc}
+\usepackage{lmodern}
+\frenchspacing
+\setlength{\parindent}{1em}
+\setlength{\parskip}{0pt}
+
+% ---------- Reduce whitespace around figures ----------
+\setlength{\textfloatsep}{8pt plus 2pt minus 2pt}
+\setlength{\floatsep}{6pt plus 2pt minus 2pt}
+\setlength{\intextsep}{6pt plus 2pt minus 2pt}
+\setlength{\abovecaptionskip}{4pt}
+\setlength{\belowcaptionskip}{2pt}
+
+% ---------- Section formatting ----------
+\usepackage{titlesec}
+\titleformat{\section}{\large\bfseries}{\thesection}{1em}{}
+\titleformat{\subsection}{\normalsize\bfseries}{\thesubsection}{1em}{}
+\titleformat{\subsubsection}{\normalsize\itshape}{\thesubsubsection}{1em}{}
+\titlespacing*{\section}{0pt}{1.8ex plus 0.5ex}{0.8ex plus 0.2ex}
+\titlespacing*{\subsection}{0pt}{1.2ex plus 0.3ex}{0.5ex plus 0.1ex}
+\titlespacing*{\subsubsection}{0pt}{1.0ex plus 0.2ex}{0.4ex plus 0.1ex}
+
+% ---------- Math ----------
+\usepackage{amsmath}
+\usepackage{amssymb}
+
+% ---------- Non-floating captions ----------
+\usepackage{caption}
+
+% ---------- Graphics and tables ----------
+\usepackage{graphicx}
+\usepackage{subcaption}
+\usepackage{booktabs}
+\usepackage{xcolor}
+\usepackage{float}
+
+% ---------- Algorithms ----------
+\usepackage[ruled,vlined,linesnumbered]{algorithm2e}
+
+% ---------- Code listings ----------
+\usepackage{listings}
+\lstset{
+  basicstyle=\ttfamily\footnotesize,
+  breaklines=true,
+  frame=single,
+  numbers=left,
+  numberstyle=\tiny\color{gray},
+  captionpos=b,
+}
+
+% ---------- Cross-references ----------
+\usepackage[
+  setpagesize=false,
+  colorlinks=true,
+  linkcolor=black,
+  citecolor=blue!60!black,
+  urlcolor=blue!60!black,
+  pdftitle={Beyond Scalar Fitness: Behavioural Feedback for LLM-Driven Metaheuristic Evolution},
+  pdfauthor={Max Harell}
+]{hyperref}
+\usepackage[capitalise,noabbrev]{cleveref}
+
+% ---------- Compact lists ----------
+\usepackage{enumitem}
+\setlist{nosep,leftmargin=1.5em}
+
+% ---------- Section numbering ----------
+\setcounter{secnumdepth}{3}
+
+% ---------- Remap chapter hierarchy for article class ----------
+\let\chapter\section
+\let\section\subsection
+\let\subsection\subsubsection
+\let\subsubsection\paragraph
+
+% ==========================================================================
+\begin{document}
+
+% ---------- Title block ----------
+\twocolumn[{%
+\begin{center}
+\vspace*{0.2cm}
+{\LARGE\bfseries Beyond Scalar Fitness:\\[0.3em]
+Behavioural Feedback for LLM-Driven\\Metaheuristic Evolution\par}
+\vspace{0.7cm}
+{\large Max Harell\par}
+\vspace{0.15cm}
+{\small LIACS, Leiden University, The Netherlands\par}
+\vspace{0.5cm}
+{\small Bachelor Thesis in Computer Science\par}
+{\small Supervised by Dr.\ Niki van Stein\par}
+\vspace{0.15cm}
+{\small \today\par}
+\vspace{0.8cm}
+\end{center}
+}]
+
+% ---------- Content ----------
+\input{chapters/ch1_introduction}
+\input{chapters/ch2_background}
+\input{chapters/ch3_features}
+\input{chapters/ch4_methodology}
+\input{chapters/ch5_results}
+\input{chapters/ch6_discussion}
+\input{chapters/ch7_conclusion}
+
+% ---------- References ----------
+\bibliographystyle{unsrt}
+\bibliography{bibliography}
+
+% ---------- Appendix ----------
+\appendix
+\input{appendices/appendix}
+
+\end{document}

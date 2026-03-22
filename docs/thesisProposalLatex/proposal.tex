@@ -1,0 +1,152 @@
+
+%
+% template for Bachelor thesis research proposal
+% LIACS
+% January, 2024
+%
+
+\documentclass[12pt]{article}
+
+% include some packages
+\usepackage[left=2cm,right=2cm,top=2cm,bottom=3cm]{geometry}
+\usepackage{graphicx}
+\usepackage{enumitem}
+\usepackage{tikz}
+\usepackage{booktabs}
+\usetikzlibrary{shapes,backgrounds,calc,arrows}
+\usepackage{microtype}
+% fill in title and author
+\usepackage[setpagesize=false,colorlinks=true,linkcolor=blue,urlcolor=red,pdftitle={An Interesting Title for a Thesis},pdfauthor={Your Name}]{hyperref}
+\frenchspacing
+\setlength{\parindent}{0pt}
+
+\begin{document}
+
+\input{titlepage}
+
+\clearpage
+\setcounter{page}{1}
+
+\section{Background and Theory}
+
+\subsection{Automated Algorithm Design}
+
+Automated Algorithm Design (AAD) has historically focused on algorithm selection and parameter configuration within predefined search spaces \cite{rice1976algorithmselection, hutter2009paramils}. These approaches optimise hyperparameters or evolve algorithms with modular components, operating under fixed structural constraints. The emergence of Large Language Models (LLMs) has altered this paradigm by allowing algorithm design to occur directly in code space \cite{romeraparedes2024funsearch, liu2024eoh}.
+
+LLaMEA \cite{vanStein2024LLaMEA} exemplifies this shift by embedding an LLM within an evolutionary loop to iteratively generate and refine metaheuristic optimisation algorithms. A metaheuristic is a problem-independent optimisation strategy that defines how candidate solutions are generated, modified, and selected during search. LLaMEA operates one level higher by performing search over metaheuristics themselves. Each candidate algorithm is evaluated on a benchmark suite and assigned a scalar fitness score. This score, together with the algorithm's source code, is fed back to the LLM, which uses this context to propose improved variants in subsequent generations.
+
+\subsection{Benchmarks and Evaluation}
+
+LLaMEA evaluates candidate metaheuristics using the Area Over the Convergence Curve (AOCC), an anytime performance metric that summarises the full optimisation trajectory as a single value between 0 and 1 \cite{vanStein2025BLADE}. The BLADE benchmarking framework provides standardised evaluation infrastructure, ensuring consistent budgets, logging, and reproducibility across experiments \cite{vanStein2025BLADE}. Benchmark problems are drawn from MA-BBOB (Many-Affine BBOB), which constructs diverse problem instances by combining affine transformations of classical BBOB functions \cite{vermetten2023mabbob, hansen2021coco}. MA-BBOB offers greater instance diversity than standard BBOB, making it well suited for testing algorithm generalisation.
+
+\subsection{Feature Spaces in Algorithm Evaluation}
+
+In the standard LLaMEA loop, the AOCC value is the sole feedback signal used to guide subsequent generations. This effectively compresses the full optimisation trajectory into a single aggregated score, discarding rich information about how the algorithm searches. During evaluation, three complementary feature spaces can be extracted from each algorithm--problem interaction:
+
+\begin{enumerate}[leftmargin=2em]
+  \item \textbf{Static code features} describe structural properties of the generated source code (e.g., number of loops, use of particular operators). These have recently been shown to provide valuable guidance in surrogate-assisted LLaMEA variants \cite{vanStein2026LLaMEASAGE}.
+  \item \textbf{Landscape features} characterise properties of the problem instance and form the basis of exploratory landscape analysis and algorithm selection, though they are computationally expensive and instance-dependent \cite{cenikj2026features, smithmiles2009meta}.
+  \item \textbf{Behavioural features} quantify the dynamic interaction between algorithm and problem during search. Unlike structural or landscape descriptors, these features capture exploration--exploitation balance, convergence dynamics, step-size adaptation, and stagnation patterns directly from the optimisation trajectory \cite{vanStein2025Behaviour}.
+\end{enumerate}
+
+Prior work has used trajectory information in related but distinct ways. Kostovska et al.\ \cite{kostovska2022trajectory} combine landscape features with algorithm-internal state variables computed along trajectories for warm-started algorithm selection, while Ochoa et al.\ \cite{ochoa2021stn} introduce Search Trajectory Networks as a graph-based tool for visualising metaheuristic behaviour. However, neither approach feeds trajectory-derived features back into an automated algorithm design loop. This is the gap in literature this thesis aims to address.
+
+\subsection{Behavioural Features}
+
+Algorithms that achieve similar AOCC values may exhibit fundamentally different search behaviours. Behavioural features derived from optimisation trajectories provide direct measurements of these dynamics, moving beyond purely outcome-based evaluation.
+
+The existing BLADE framework computes 11 behavioural metrics from algorithm trajectories, covering exploration and diversity (e.g., nearest-neighbour distance, dispersion), exploitation and intensification (e.g., distance to best, intensification ratio), convergence progress (e.g., convergence rate, improvement magnitude), and stagnation (e.g., longest no-improvement streak) \cite{vanStein2025Behaviour}.
+
+This thesis extends this set with additional features drawn from four categories:
+
+\begin{enumerate}[leftmargin=2em]
+  \item \textbf{Step-size dynamics}: mean, variance, and trend of consecutive step sizes, plus directional persistence. These aim to capture how the algorithm moves through search space over time \cite{cenikj2026features}.
+  \item \textbf{Information theory inspired features}: sample entropy \cite{richman2000sampen}, permutation entropy \cite{bandt2002permutation}, Lempel-Ziv complexity, fitness autocorrelation \cite{weinberger1990fitness}, and Lempel-Ziv complexity applied to fitness trajectories. These features quantify regularity and complexity of convergence dynamics.
+  \item \textbf{Population dynamics}: early-vs-late spread, centroid drift, and fitness range ratios, adapted from DynamoRep \cite{cenikj2023dynamorep} for single-solution evolutionary strategies.
+  \item \textbf{Novel metrics}: improvement burstiness (temporal clustering of improvements), improvement--spatial correlation (relationship between step size and improvement magnitude), dimension convergence heterogeneity, and half-convergence time.
+\end{enumerate}
+
+Together with the 11 existing BLADE metrics, these extensions yield a full feature set of 32 behavioural metrics. Incorporating trajectory information into the evolutionary feedback loop of LLaMEA has the potential to improve robustness and generalisation by moving beyond purely outcome-based evaluation.
+
+
+\section{Research Question}
+
+Does incorporating trajectory-derived behavioural features into the evolutionary feedback loop of LLM-driven optimisation algorithm creation improve the performance and generalisation of discovered metaheuristics compared to fitness-only feedback?
+
+\section{Study Design and Method}
+
+\subsection{Stage 1: LLM Screening}
+
+Before investigating feedback mechanisms, a suitable LLM must be selected. Small language models (SLMs) vary substantially in their ability to generate valid, high-quality optimisation code. This stage screens candidate models to identify those that reliably produce functional algorithms with competitive performance.
+
+Ten models spanning local open-weight SLMs (3B--32B parameters, served via Ollama) and cloud API models (Gemini) are evaluated on a fixed MA-BBOB \cite{vermetten2023mabbob} benchmark configuration using vanilla AOCC-only feedback. Each model runs a (1+1)-ES evolutionary strategy for 100 candidates across 5 independent seeds, all starting from the same random search algorithm to ensure differences are attributable to the LLM rather than initialisation.
+
+Models are ranked on a composite of failure rate (code validity), best AOCC achieved, and inference efficiency. The top-performing models are shortlisted for subsequent stages. All 32 behavioural features are computed and logged for every successful candidate across all models and seeds, producing the dataset used in Stage~2.
+
+\subsection{Stage 2: Behavioural Feature Analysis}
+
+The Stage~1 dataset, comprising several thousand algorithm--feature observations across 10 models and 5 seeds, is analysed to determine which of the 32 behavioural metrics are most predictive of algorithm quality. Three complementary methods are applied: Spearman rank correlation with AOCC (with Bonferroni correction), random forest permutation importance, and SHAP value analysis. Results are aggregated via Borda-count consensus ranking.
+
+This analysis determines which metrics most strongly predict AOCC, the direction and consistency of each correlation across models, and which metrics are redundant (identified via inter-metric correlation). Features with weak, inconsistent, or redundant associations with AOCC are dropped, reducing the 32 candidates to a tractable number for experimental comparison. The correlation directions also inform the feedback format tested in Stage~3.
+
+\subsection{Stage 3: Behavioural Feature Screening}
+
+This stage determines which behavioural features, when included as feedback to the LLM, actually improve algorithm quality compared to AOCC-only feedback. Using the model(s) selected in Stage~1, experiments run on a representative subset of MA-BBOB instances in a single dimension setting.
+
+Each feature retained from Stage~2 is tested individually by running 100 LLaMEA steps across multiple random seeds. After every candidate evaluation, the LLM receives a natural-language feedback string reporting the AOCC score augmented by a single behavioural metric appended as a labelled value.
+
+Two feedback formats are compared for each feature. In the \emph{neutral} format, the metric value is reported without interpretation. In the \emph{directional} format, the description includes guidance derived from the Stage~2 correlation analysis (e.g., ``higher values are associated with better performance''). This tests whether the LLM benefits from explicit directional cues or can infer the relationship autonomously.
+
+Conditions are compared against the vanilla AOCC-only baseline using statistical tests and effect size measures. After screening, a reduced subset of complementary, high-impact features and the better-performing feedback format are carried forward to the full benchmark.
+
+\subsection{Stage 4: Full Benchmark Comparison}
+
+The final stage compares four feedback conditions on the complete MA-BBOB benchmark spanning multiple function groups, instances, and dimensions:
+
+\begin{table}[h]
+\centering
+\begin{tabular}{@{}cl@{}}
+\toprule
+\textbf{Condition} & \textbf{Feedback to LLM} \\
+\midrule
+Vanilla & AOCC score only \\
+Behavioural & AOCC + selected behavioural features \\
+Code features & AOCC + structural code features (SAGE) \cite{vanStein2026LLaMEASAGE} \\
+Combined & AOCC + behavioural + code features \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Each condition is repeated with multiple independent seeds. Performance is measured by AOCC aggregated across instances. Statistical tests with effect size reporting determine whether behavioural feedback yields significant and practically meaningful improvements in metaheuristic discovery, and whether it provides complementary or redundant information relative to code features.
+
+\section{Global Planning}
+
+\vspace{-0.5em}
+\begin{table}[!ht]
+\small
+\centering
+\begin{tabular}{@{}rp{11.5cm}@{}}
+\toprule
+\textbf{Weeks} & \textbf{Activities} \\
+\midrule
+1--2 & Replicate vanilla LLaMEA baseline. Integrate trajectory logging in BLADE. Finalise MA-BBOB benchmark subset. Begin writing introduction and background. \\[3pt]
+3--4 & Stage~1: LLM screening experiment. Implement extended feature set (32 metrics). Draft methodology chapter. \\[3pt]
+5--6 & Stage~2: behavioural feature analysis (correlation, importance, redundancy). Select model shortlist and reduced feature subset. Write related work. \\[3pt]
+7--8 & Stage~3: feature screening on restricted benchmark. Test neutral vs.\ directional feedback. Select final features and feedback format. \\[3pt]
+9--11 & Stage~4: full benchmark comparison (vanilla, behavioural, code feature, combined). Statistical analysis and robustness evaluation. Write results chapter. \\[3pt]
+12--14 & Ablations, interpretation, discussion and conclusion chapters. Revise with supervisor feedback and prepare final submission. \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\newpage
+
+\bibliographystyle{alpha}
+\bibliography{bibliography}
+\addcontentsline{toc}{section}{References}
+
+
+%\appendix
+%appendices here --- if any
+
+\end{document}

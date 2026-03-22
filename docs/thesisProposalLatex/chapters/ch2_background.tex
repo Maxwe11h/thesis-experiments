@@ -1,0 +1,103 @@
+% =============================================================================
+% Chapter 2: Background and Related Work
+% =============================================================================
+
+\chapter{Background and Related Work}
+\label{ch:background}
+
+% ---------------------------------------------------------------------------
+\section{Metaheuristic Optimisation}
+\label{sec:bg-metaheuristics}
+
+A metaheuristic is a high-level, problem-independent strategy for solving optimisation problems of the form $\min \mathcal{F}(x),\; x \in \mathcal{S} \subseteq \mathbb{R}^d$, where $\mathcal{F}$ is a black-box objective function that can be evaluated but whose gradient or structure is unknown~\cite{eiben2015introduction}. Metaheuristics work by iteratively generating, evaluating, and selecting candidate solutions according to heuristic rules that govern how the search space is explored. Unlike exact methods, they make no guarantees of optimality but can find good solutions efficiently across a wide range of problem types.
+
+The field encompasses a broad family of algorithms. Evolution Strategies (ES) maintain a population of candidate solutions and apply Gaussian mutation with self-adaptive step sizes~\cite{back1996evolutionary}. The Covariance Matrix Adaptation Evolution Strategy (CMA-ES) extends this by learning a full covariance matrix that captures the local landscape geometry, and is widely considered the state of the art for continuous black-box optimisation~\cite{hansen2001cmaes}. Differential Evolution (DE) generates trial solutions by combining vector differences sampled from the current population~\cite{storn1997de}. Other well-known approaches include Particle Swarm Optimisation and genetic algorithms.
+
+Despite their success, the design of metaheuristics remains largely a manual endeavour. A vast number of methods have been proposed~\cite{eiben2015introduction}, many with overlapping mechanisms and limited systematic benchmarking. Choosing the right algorithm for a given problem, configuring its parameters, or designing a new variant requires deep expertise and extensive experimentation. This motivates the pursuit of automated approaches to algorithm design.
+
+% ---------------------------------------------------------------------------
+
+\section{Automated Algorithm Design}
+\label{sec:bg-aad}
+
+The automated design of optimisation algorithms has evolved through several paradigms, each expanding the scope of what can be automated.
+
+\paragraph{Algorithm selection.}
+Rice's algorithm selection problem~\cite{rice1976algorithmselection} formalises the challenge. Given a set of algorithms and a set of problem instances, learn a mapping from problem features to the best algorithm. This requires a fixed portfolio of candidate algorithms and features that characterise problem instances. Meta-learning approaches~\cite{smithmiles2009meta} build on this framework using landscape features to predict algorithm performance.
+
+\paragraph{Algorithm configuration.}
+Rather than selecting among fixed algorithms, configuration approaches optimise the hyperparameters of a single algorithm. ParamILS~\cite{hutter2009paramils} applies iterated local search in parameter space, treating algorithm performance on a benchmark as a black-box function of its parameters. These methods can find configurations that substantially outperform defaults, but they operate within a fixed algorithmic structure.
+
+\paragraph{Modular frameworks.}
+Modular approaches bridge selection and configuration by decomposing algorithms into interchangeable components. Van Rijn et al.~\cite{vanRijn2016modular} evolve the structure of evolution strategies by treating algorithmic modules (selection, recombination, mutation operators) as parameters of a meta-optimisation problem. Vermetten et al.~\cite{vermetten2023modde} apply the same principle to Differential Evolution. These frameworks can search over millions of algorithm configurations, but they remain limited to the modules their designers included. The design space is large but bounded.
+
+\paragraph{Programming by optimisation.}
+Hoos~\cite{hoos2012pbo} argues for a broader methodology. Instead of designing a single algorithm, developers should expose all design decisions as parameters and let automated methods search the resulting space. Genetic Improvement~\cite{petke2018gi} takes this further by applying evolutionary operators directly to source code, modifying and recombining program fragments to improve non-functional properties. These ideas foreshadow the shift to code-generation based approaches, where algorithms are constructed from scratch rather than configured from templates.
+
+% ---------------------------------------------------------------------------
+\section{LLMs for Algorithm Design}
+\label{sec:bg-llm-aad}
+
+The emergence of Large Language Models capable of generating complex code has introduced a qualitatively different approach to algorithm design. Rather than searching within a predefined design space, LLMs can generate complete algorithms as executable programs, unconstrained by modular templates. Following the taxonomy of van Stein and B\"ack~\cite{vanStein2024LLaMEA}, we distinguish three classes of LLM--EC integration.
+
+\paragraph{Prompt optimisation.}
+Evolutionary algorithms can be applied to optimise the prompts given to LLMs. EvoPrompt~\cite{guo2024evoprompt} uses genetic algorithms to evolve prompts, outperforming human-engineered alternatives. The Automated Prompt Engineer (APE)~\cite{zhou2023ape} takes a similar approach using Monte Carlo search. These methods optimise how we communicate with LLMs but do not use LLMs to generate algorithms directly.
+
+\paragraph{Code generation.}
+FunSearch~\cite{romeraparedes2024funsearch} demonstrated that LLMs embedded in an evolutionary loop can discover novel mathematical results, generating Python programs for the cap-set problem that surpassed known bounds. The approach uses a distributed island model with millions of LLM calls. Evolution of Heuristics (EoH)~\cite{liu2024eoh} applies a similar principle to combinatorial optimisation, treating candidate heuristics as individuals in an evolutionary population. Algorithm Evolution using Large Language Model (AEL)~\cite{liu2023ael} is a related approach from the same group. The Self-Taught Optimiser (STOP)~\cite{zelikman2024stop} demonstrates recursive self-improvement where the LLM-generated code is itself a prompt optimiser, creating a meta-learning loop.
+
+\paragraph{LLaMEA.}
+LLaMEA~\cite{vanStein2024LLaMEA} targets the generation of complete metaheuristic optimisation algorithms for continuous black-box problems. Unlike EoH or AEL, which generate small heuristic components for combinatorial problems, LLaMEA generates full Python classes with initialisation, state management, and search logic. The framework combines in-context learning (the LLM sees previous algorithms and their scores) with an evolutionary loop that provides selection pressure. On the 5-dimensional BBOB benchmark, LLaMEA-generated algorithms match or exceed CMA-ES with default parameters.
+
+Several recent approaches offer alternative search strategies for the same problem. MCTS-AHD~\cite{zheng2025mctsahd} replaces the evolutionary loop with Monte Carlo Tree Search, organising generated heuristics in a tree structure that balances exploration and exploitation. LLM-driven Heuristic Neighbourhood Search (LHNS)~\cite{xie2025lhns} abandons population-based evolution in favour of single-solution neighbourhood search with ruin-and-recreate operators. Both achieve competitive results on combinatorial benchmarks, demonstrating that the search strategy over LLM-generated code is itself an active research question.
+
+The Behaviour Space paper~\cite{vanStein2025Behaviour} extends LLaMEA by logging and analysing the behavioural profiles of generated algorithms. Using 11 metrics from the BLADE framework, the authors characterise exploration, exploitation, convergence, and stagnation patterns across six LLaMEA configurations. Their analysis reveals that higher-performing algorithms consistently exhibit more intensive exploitation behaviour and faster convergence. However, this behavioural information is used only for post-hoc analysis, not as feedback to the LLM.
+
+% ---------------------------------------------------------------------------
+\section{Benchmarking and Evaluation}
+\label{sec:bg-benchmarking}
+
+Rigorous benchmarking is essential for comparing generated algorithms and providing meaningful feedback to the LLM.
+
+\paragraph{BBOB and MA-BBOB.}
+The Black-Box Optimisation Benchmark (BBOB)~\cite{hansen2021coco} defines 24 noiseless test functions spanning five function groups (separable, moderate conditioning, high conditioning, multimodal with adequate structure, multimodal with weak structure). MA-BBOB (Many-Affine BBOB)~\cite{vermetten2023mabbob} extends this by constructing novel instances through affine combinations of BBOB functions, providing much greater instance diversity while preserving known landscape properties. MA-BBOB is the benchmark used in recent LLaMEA work~\cite{vanStein2026LLaMEASAGE} and in this thesis.
+
+\paragraph{IOHexperimenter and BLADE.}
+IOHexperimenter~\cite{deNobel2024iohexperimenter} provides the evaluation infrastructure: it runs algorithms on benchmark functions, enforces budget limits, and logs full trajectories. IOHanalyzer~\cite{wang2022iohanalyzer} provides statistical analysis and visualisation of the logged data. BLADE~\cite{vanStein2025BLADE} builds on IOHexperimenter to provide a standardised evaluation framework specifically for LLM-driven algorithm design, including prompt management, candidate logging, and behavioural metric computation.
+
+\paragraph{AOCC.}
+The Area Over the Convergence Curve (AOCC)~\cite{vanStein2025BLADE} is an anytime performance metric that captures not just the final solution quality but the entire convergence trajectory. Unlike fixed-target metrics that measure time-to-threshold, AOCC rewards algorithms that converge quickly \emph{and} reach good final solutions. It is the standard performance metric in the BLADE framework and in this thesis (see \cref{eq:aocc} for the formal definition).
+
+% ---------------------------------------------------------------------------
+\section{Behavioural Analysis of Optimisation Algorithms}
+\label{sec:bg-behaviour}
+
+Understanding \emph{why} an algorithm succeeds or fails requires looking beyond performance scores to the dynamics of the search process.
+
+\paragraph{Fitness landscape analysis.}
+Exploratory Landscape Analysis (ELA)~\cite{mersmann2011ela} characterises problem instances using features computed from sampled points, enabling algorithm selection without running the full optimisation. Common features include convexity estimates, information content~\cite{munoz2015information}, and distribution statistics~\cite{kerschke2019flacco}. Malan and Engelbrecht~\cite{malan2013landscape} provide a comprehensive survey of landscape characterisation techniques. These features describe the \emph{problem}, not the algorithm's interaction with it.
+
+\paragraph{Trajectory analysis.}
+Several approaches analyse algorithm behaviour through the lens of its search trajectory. Search Trajectory Networks (STNs)~\cite{ochoa2021stn} discretise the search space and represent trajectories as graphs, enabling visual comparison of algorithm dynamics. DynamoRep~\cite{cenikj2023dynamorep} uses trajectory-based population dynamics, specifically per-generation statistics of fitness and position distributions, to classify optimisation problems. Kostovska et al.~\cite{kostovska2022trajectory} combine landscape features with algorithm-internal state variables (step size, covariance matrix) computed along trajectories for warm-started algorithm selection. However, these trajectory-based features have been used for \emph{algorithm selection} and \emph{problem classification}, not as feedback signals within an \emph{algorithm design loop}.
+
+\paragraph{Behavioural features for LLM-generated algorithms.}
+The Behaviour Space paper~\cite{vanStein2025Behaviour} defines 11 quantitative behavioural metrics that capture how LLM-generated metaheuristics search and fall into four categories: exploration breadth, exploitation intensity, convergence speed, and stagnation duration. These features are computed from the algorithm's trajectory on the benchmark suite and used for post-hoc analysis, including parallel coordinate plots, behaviour-space projections, and Search Trajectory Networks. The analysis reveals clear behavioural differences between LLaMEA configurations and demonstrates that behavioural metrics can explain performance differences that AOCC alone cannot. This work directly motivates our thesis. If behavioural features can \emph{explain} why algorithms succeed, can they also \emph{guide} the generation of better algorithms when fed back to the LLM?
+
+\paragraph{Meta-features for algorithm evaluation.}
+Cenikj et al.~\cite{cenikj2026features} provide a comprehensive survey of meta-features used for automated algorithm selection in continuous optimisation. Their taxonomy covers landscape features, trajectory features, and algorithm-internal features. Our work draws on this literature to design novel trajectory-based features that capture aspects of algorithm behaviour not addressed by existing metrics.
+
+% ---------------------------------------------------------------------------
+\section{Structured Feedback in Automated Algorithm Design}
+\label{sec:bg-feedback}
+
+The standard LLaMEA evolution loop uses a single scalar AOCC score as feedback when generating new algorithms. LLaMEA-SAGE~\cite{vanStein2026LLaMEASAGE} demonstrates that augmenting this feedback with \emph{structural} information about the generated code can improve the search process.
+
+\paragraph{LLaMEA-SAGE.}
+SAGE extracts features from the Abstract Syntax Tree (AST) of each generated algorithm, including graph-theoretic metrics (node count, degree distribution, tree depth), code complexity measures (cyclomatic complexity, function token count), and structural statistics. These features are stored in an archive alongside their fitness scores. A surrogate model is trained on this archive to learn the relationship between code structure and performance, and SHAP analysis~\cite{lundberg2017shap} identifies which structural features most influence fitness. The resulting guidance is translated into natural-language instructions (e.g., ``\textit{try to increase the cyclomatic complexity}'') that augment the mutation prompt.
+
+On the MA-BBOB benchmark, LLaMEA-SAGE achieves faster convergence than vanilla LLaMEA and outperforms competing approaches including MCTS-AHD and LHNS~\cite{vanStein2026LLaMEASAGE}. The key insight is that code features are \emph{proximal}. They describe properties of the LLM's output code and are therefore directly actionable. For example, the LLM can increase cyclomatic complexity by adding branches, and it can reduce function count by inlining.
+
+\paragraph{Behavioural Feedback}
+This thesis investigates a signal complementary to those in LLaMEA-SAGE. \emph{Behavioural} features derived from algorithm execution trajectories. Where code features describe \emph{what the algorithm is} (its structure), behavioural features describe \emph{what the algorithm does} (how it searches). These features are \emph{distal}, emerging from the interaction between the algorithm's code and the optimisation landscape through potentially complex and non-obvious mechanisms. Telling the LLM ``increase \texttt{step\_size\_autocorrelation}'' is fundamentally different from ``increase cyclomatic complexity''. The former requires the LLM to infer which code changes would produce a desired \emph{emergent} property, while the latter can be achieved through direct code manipulation.
+
+This distinction raises the central question of our thesis. Can an LLM translate high-level behavioural descriptions into the right code changes? And if so, does the framing of that feedback, whether neutral observation, directional guidance, or comparative anchoring, affect the outcome?

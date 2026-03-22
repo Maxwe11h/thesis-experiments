@@ -1,0 +1,48 @@
+% =============================================================================
+% Chapter 7: Conclusion and Future Work
+% =============================================================================
+
+\chapter{Conclusion and Future Work}
+\label{ch:conclusion}
+
+% ---------------------------------------------------------------------------
+\section{Summary}
+\label{sec:conc-summary}
+
+This thesis investigated whether trajectory-derived behavioural features can guide LLM-driven metaheuristic design when incorporated into the evolutionary feedback loop. We designed an extended set of 32 behavioural features (21 new, including 6 entirely novel metrics), screened 10 language models to identify viable candidates for automated algorithm design, and systematically evaluated three feedback formats (neutral, directional, and comparative) across 10 selected features.
+
+The results are clear: behavioural features provide useful observational context that maintains or slightly improves algorithm quality when presented neutrally. Prescriptive feedback, whether directional guidance or comparative anchoring against reference values, degrades performance despite the LLM clearly responding to it. The overall format ranking is consistent: neutral (mean best AOCC $= 0.869$) $>$ directional ($0.840$) $>$ comparative ($0.788$), with the difference significant at $p = 0.003$ (Kruskal--Wallis).
+
+% ---------------------------------------------------------------------------
+\section{Key Insight}
+\label{sec:conc-insight}
+
+The AOCC-matched analysis reveals that the LLM does respond to behavioural feedback: it produces behaviourally different algorithms depending on the feedback format, with 16 of 19 feature--quality-band combinations showing significant differences. But the direction of change is unpredictable, approximately 50\% correct for both directional and comparative formats and essentially no better than chance.
+
+The paradox is that behavioural steering is not systematically wrong, just unreliable. The mapping from source code to emergent behavioural properties is too indirect for the LLM to navigate prescriptively. Some features are more steerable than others (notably \texttt{fitness\_plateau\_fraction}), suggesting that steerability depends on how directly the feature maps to identifiable code patterns.
+
+The practical implication is that in LLM-driven algorithm design, the evolutionary selection mechanism should remain the primary driver of behavioural improvement. Behavioural features serve best as \emph{informational context} that enriches the LLM's understanding of what its algorithms do, rather than as optimisation targets.
+
+% ---------------------------------------------------------------------------
+\section{Future Work}
+\label{sec:conc-future}
+
+Several directions follow naturally from this work.
+
+\paragraph{Full benchmark comparison.}
+The planned Stage~4 experiment, which would compare vanilla, neutral-behavioural, SAGE (code features), and combined feedback on the full MA-BBOB benchmark across multiple dimensions, would provide the definitive comparison. Our screening results indicate that neutral feedback is the format to carry forward.
+
+\paragraph{Multi-feature feedback.}
+All conditions in this thesis test individual features. Reporting multiple behavioural features simultaneously could provide a richer, more holistic picture of algorithm behaviour. The question is whether the LLM can integrate multiple behavioural signals constructively or whether the additional information creates noise.
+
+\paragraph{Adaptive feedback.}
+Our results suggest that neutral feedback works well overall, but directional feedback occasionally helps in specific quality bands and for specific features. An adaptive scheme that starts with neutral feedback (during broad search) and switches to targeted guidance for steerable features (during refinement) could combine the benefits of both.
+
+\paragraph{Combined behavioural and structural feedback.}
+LLaMEA-SAGE demonstrates that code features provide actionable structural guidance. Behavioural features provide complementary execution-level context. A system that feeds back both, using structural features for directed code changes and behavioural features for situational awareness, could leverage the strengths of each signal type.
+
+\paragraph{Cross-model validation.}
+Stage~3 uses a single model (Gemini~3 Flash). Different LLMs may exhibit different steerability patterns, particularly models with stronger code reasoning or larger context windows. Validating the neutral-dominates pattern across model families would strengthen the conclusion.
+
+\paragraph{Steerability analysis.}
+Our observation that some features (e.g., \texttt{fitness\_plateau\_fraction}) are more steerable than others opens a research direction: systematically mapping the causal pathways from code changes to behavioural metrics, potentially using techniques from causal inference or program analysis. Understanding \emph{why} some features are steerable could inform the design of more effective feedback mechanisms.
