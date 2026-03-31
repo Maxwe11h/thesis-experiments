@@ -1,45 +1,36 @@
 #!/bin/bash
 #SBATCH --partition=L40s_students
 #SBATCH --gres=gpu:1
-#SBATCH --time=12:00:00
+#SBATCH --time=5-00:00:00
 #SBATCH --cpus-per-task=16
 #SBATCH --mem=32G
 #SBATCH --job-name=p4
 #SBATCH --output=logs/slurm/phase4-%j.out
 #SBATCH --error=logs/slurm/phase4-%j.err
 #
-# Phase 4: Full benchmark comparison — one wave at a time.
-# 500 candidates x ~50s/candidate ≈ 7h per seed.
+# Phase 4: Full benchmark comparison.
+# 500 candidates x ~3min/candidate (vanilla/behav) or ~9min/candidate (sage/combined)
 #
-# Split into 3 runs to stay within Gemini 10k RPD quota:
-#   Run 1: seeds 0-3, 4 conditions = 16 seeds (8k API calls)
-#   Run 2: seeds 4-6, 4 conditions = 12 seeds (6k API calls)
-#   Run 3: seeds 7-9, 4 conditions = 12 seeds (6k API calls)
+# Seed allocation (30 seeds total, ~8.5k RPD):
+#   vanilla:     seeds 0-4  (5 seeds,  ~1.1 days)
+#   behavioural: seeds 0-4  (5 seeds,  ~1.1 days)
+#   sage:        seeds 0-9  (10 seeds, ~2.5 days)
+#   combined:    seeds 0-9  (10 seeds, ~2.5 days)
 #
 # Usage:
-#   sbatch --nodelist=saronite slurm/phase4.sbatch 0 3
-#   # wait for RPD reset (midnight PT), then:
-#   sbatch --nodelist=saronite slurm/phase4.sbatch 4 6
-#   # next day:
-#   sbatch --nodelist=saronite slurm/phase4.sbatch 7 9
+#   sbatch --nodelist=saronite slurm/phase4.sbatch
 
 set -uo pipefail
-
-SEED_START="${1:?Usage: sbatch slurm/phase4.sbatch SEED_START SEED_END}"
-SEED_END="${2:?Usage: sbatch slurm/phase4.sbatch SEED_START SEED_END}"
 
 CONDA_ENV="/local/$USER/conda_envs/thesis"
 REPO_DIR="$HOME/thesis"
 RESULTS_DIR="$REPO_DIR/results_phase4"
 BUDGET=500
 
-CONDITIONS=(vanilla behavioural sage combined)
-
 NODE=$(hostname)
 echo "========================================="
 echo "Phase 4 — Full Benchmark Comparison"
 echo "  Node:   $NODE"
-echo "  Seeds:  $SEED_START-$SEED_END"
 echo "  Job:    $SLURM_JOB_ID"
 echo "  Start:  $(date)"
 echo "========================================="
@@ -64,20 +55,29 @@ fi
 is_complete() {
     local cond="$1" seed="$2"
     local seed_dir="$RESULTS_DIR/$cond/seed-$seed"
-    local log
-    log=$(ls -t "$seed_dir"/run-*/log.jsonl 2>/dev/null | head -1)
-    [ -z "$log" ] && return 1
-    local count
-    count=$(wc -l < "$log")
-    [ "$count" -ge "$BUDGET" ]
+    local total=0
+    for log in "$seed_dir"/run-*/log.jsonl; do
+        [ -f "$log" ] || continue
+        local count
+        count=$(wc -l < "$log")
+        total=$((total + count))
+    done
+    [ "$total" -ge "$BUDGET" ]
 }
 
-# --- Launch all seeds in this wave in parallel ---
+# --- Seed assignments per condition ---
+declare -A SEED_RANGES
+SEED_RANGES[vanilla]="0 1 2 3 4"
+SEED_RANGES[behavioural]="0 1 2 3 4"
+SEED_RANGES[sage]="0 1 2 3 4 5 6 7 8 9"
+SEED_RANGES[combined]="0 1 2 3 4 5 6 7 8 9"
+
+# --- Launch all seeds ---
 pids=()
 labels=()
 
-for seed in $(seq "$SEED_START" "$SEED_END"); do
-    for cond in "${CONDITIONS[@]}"; do
+for cond in vanilla behavioural sage combined; do
+    for seed in ${SEED_RANGES[$cond]}; do
         if is_complete "$cond" "$seed"; then
             echo "SKIP $cond seed-$seed (already complete)"
             continue
@@ -109,7 +109,6 @@ done
 
 echo ""
 echo "========================================="
-echo "  Seeds:     $SEED_START-$SEED_END"
 echo "  Completed: $((${#pids[@]} - failed))/${#pids[@]}"
 echo "  Failed:    $failed"
 echo "  End:       $(date)"

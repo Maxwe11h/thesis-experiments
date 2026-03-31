@@ -79,7 +79,8 @@ def make_problem(condition_tag, use_worker_pool=True, eval_seeds=None,
     )
 
 
-def make_method(condition_tag, llm, budget=None, initial_solutions=None):
+def make_method(condition_tag, llm, budget=None, initial_solutions=None,
+                resume_dir=None):
     """Create a Phase1LLaMEA method for the given condition."""
     spec = CONDITIONS[condition_tag]
     return Phase1LLaMEA(
@@ -87,6 +88,7 @@ def make_method(condition_tag, llm, budget=None, initial_solutions=None):
         budget=budget or LLAMEA_BUDGET,
         name=condition_tag,
         initial_solutions=initial_solutions,
+        resume_dir=resume_dir,
         n_parents=N_PARENTS,
         n_offspring=N_OFFSPRING,
         elitism=ELITISM,
@@ -96,22 +98,54 @@ def make_method(condition_tag, llm, budget=None, initial_solutions=None):
     )
 
 
-def is_seed_complete(results_dir, condition_tag, seed, budget=None):
-    """Check if a (condition, seed) run is already complete.
+def _find_resume_dir(results_dir, condition_tag, seed, budget=None):
+    """Find an incomplete run directory with a pickle checkpoint to resume from.
 
-    A run is complete if its log.jsonl has >= budget lines.
+    Returns the run directory path if a resumable checkpoint exists, else None.
     """
     budget = budget or LLAMEA_BUDGET
     seed_dir = Path(results_dir) / condition_tag / f"seed-{seed}"
+    best_candidate = None
+    best_count = 0
+    for run_dir in seed_dir.glob("run-*"):
+        pkl = run_dir / "llamea_config.pkl"
+        log = run_dir / "log.jsonl"
+        if not pkl.is_file():
+            continue
+        count = 0
+        if log.is_file():
+            with open(log) as f:
+                count = sum(1 for _ in f)
+        # Skip already-complete runs
+        if count >= budget:
+            continue
+        # Pick the run with the most progress
+        if count > best_count:
+            best_count = count
+            best_candidate = str(run_dir)
+    return best_candidate
+
+
+def is_seed_complete(results_dir, condition_tag, seed, budget=None):
+    """Check if a (condition, seed) run is already complete.
+
+    A run is complete if any single run directory's log.jsonl has >= budget
+    lines, OR if the total across all run directories (from resume) reaches
+    the budget.
+    """
+    budget = budget or LLAMEA_BUDGET
+    seed_dir = Path(results_dir) / condition_tag / f"seed-{seed}"
+    total = 0
     for log_file in seed_dir.glob("run-*/log.jsonl"):
         try:
             with open(log_file) as f:
                 count = sum(1 for _ in f)
             if count >= budget:
                 return True
+            total += count
         except OSError:
             pass
-    return False
+    return total >= budget
 
 
 # ---------------------------------------------------------------------------
@@ -137,6 +171,11 @@ def run_single_seed(
     results_dir = results_dir or RESULTS_DIR
     result_dir = f"{results_dir}/{condition_tag}/seed-{seed}"
 
+    # Check for a resumable checkpoint from a previous interrupted run
+    resume_dir = _find_resume_dir(results_dir, condition_tag, seed, budget)
+    if resume_dir:
+        print(f"  Found checkpoint to resume: {resume_dir}")
+
     llm = make_llm(MODEL_CFG)
     problem = make_problem(
         condition_tag,
@@ -148,6 +187,7 @@ def run_single_seed(
     initial_solutions = get_initial_solutions()
     method = make_method(
         condition_tag, llm, budget=budget, initial_solutions=initial_solutions,
+        resume_dir=resume_dir,
     )
     os.makedirs(result_dir, exist_ok=True)
     logger = ExperimentLogger(result_dir)

@@ -149,6 +149,8 @@ class MaBBOBProblem(MA_BBOB):
         # --- full MA-BBOB evaluation with inner seed loop ---
         import time as _time
         _eval_t0 = _time.monotonic()
+        _algo_time = 0.0
+        _behavior_time = 0.0
         aucs = []
         all_metrics = []
 
@@ -180,9 +182,11 @@ class MaBBOBProblem(MA_BBOB):
 
                     try:
                         algorithm = local_ns[algorithm_name](budget=budget, dim=dim)
+                        _algo_t0 = _time.monotonic()
                         algorithm(f_new)
+                        _algo_time += _time.monotonic() - _algo_t0
                     except OverBudgetException:
-                        pass
+                        _algo_time += _time.monotonic() - _algo_t0
                     except Exception as e:
                         solution.set_scores(float("-inf"), str(e))
                         return solution
@@ -192,9 +196,11 @@ class MaBBOBProblem(MA_BBOB):
 
                     df = l_traj.to_dataframe()
                     if len(df) > 1:
+                        _bm_t0 = _time.monotonic()
                         metrics = compute_behavior_metrics(
                             df, bounds=self.bbob_bounds * dim,
                         )
+                        _behavior_time += _time.monotonic() - _bm_t0
                         all_metrics.append(metrics)
 
                     f_new.reset()
@@ -211,6 +217,8 @@ class MaBBOBProblem(MA_BBOB):
         solution.add_metadata("behavioral_features", avg_met)
         solution.add_metadata("behavioral_features_std", std_met)
         solution.add_metadata("evaluation_time_s", round(_eval_time, 3))
+        solution.add_metadata("algorithm_execution_time_s", round(_algo_time, 3))
+        solution.add_metadata("behavior_metrics_time_s", round(_behavior_time, 3))
 
         return solution
 

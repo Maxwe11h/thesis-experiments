@@ -67,15 +67,66 @@ class Phase1LLaMEA(BladeLLaMEA):
     Instead of letting LLaMEA generate the initial solution via the LLM,
     we pre-evaluate a known algorithm (RandomSearch) and inject it so every
     model and seed starts from the same baseline.
+
+    Supports resuming from a pickle checkpoint saved by LLaMEA's
+    ``pickle_archive()`` (called every generation).
     """
 
-    def __init__(self, llm, budget, name, initial_solutions=None, **kwargs):
+    def __init__(self, llm, budget, name, initial_solutions=None,
+                 resume_dir=None, **kwargs):
         super().__init__(llm, budget, name, **kwargs)
-        # List of unevaluated Solution objects to use as starting population
         self._initial_solutions = initial_solutions or []
+        self._resume_dir = resume_dir
+
+    def _enable_checkpoint(self, llamea_instance):
+        """Enable pickle checkpointing by giving LLaMEA a logger with dirname.
+
+        BLADE sets ``method.llm.set_logger(logger)`` before calling the method,
+        so we can grab the run directory from the LLM's logger.
+        """
+        llm_logger = getattr(self.llm, 'logger', None)
+        if llm_logger and hasattr(llm_logger, 'dirname'):
+            # Minimal logger stub: only provides dirname for pickle_archive()
+            # and no-ops for log_population() which BLADE handles separately.
+            class _CheckpointLogger:
+                def __init__(self, dirname):
+                    self.dirname = dirname
+                def log_population(self, population):
+                    pass  # BLADE's logger handles this
+                def log_individual(self, individual):
+                    pass
+            llamea_instance.log = True
+            llamea_instance.logger = _CheckpointLogger(llm_logger.dirname)
 
     def __call__(self, problem):
-        """Create the LLaMEA instance, inject initial population, then run."""
+        """Create the LLaMEA instance, inject initial population, then run.
+
+        If ``_resume_dir`` points to a run directory containing
+        ``llamea_config.pkl``, the full evolutionary state is restored and
+        the run continues from where it left off.
+        """
+        import pickle
+
+        pkl_path = (os.path.join(self._resume_dir, "llamea_config.pkl")
+                    if self._resume_dir else None)
+
+        if pkl_path and os.path.isfile(pkl_path):
+            # --- Resume from checkpoint ---
+            with open(pkl_path, "rb") as fh:
+                self.llamea_instance = pickle.load(fh)
+
+            # Re-attach live objects that cannot be pickled reliably
+            self.llamea_instance.llm = self.llm
+            self.llamea_instance.f = problem
+            self._enable_checkpoint(self.llamea_instance)
+
+            n_done = len(self.llamea_instance.run_history)
+            print(f"  Resumed from checkpoint: {n_done}/{self.budget} candidates, "
+                  f"generation {self.llamea_instance.generation}")
+
+            return self.llamea_instance.run()
+
+        # --- Fresh run ---
         self.llamea_instance = LLaMEA_Algorithm(
             f=problem,
             llm=self.llm,
@@ -88,6 +139,7 @@ class Phase1LLaMEA(BladeLLaMEA):
             max_workers=1,  # no parallelisation inside LLaMEA (BLADE manages it)
             **self.kwargs,
         )
+        self._enable_checkpoint(self.llamea_instance)
 
         if self._initial_solutions:
             # Evaluate each initial solution through the problem's full pipeline
