@@ -7,12 +7,10 @@
 
 This section presents the 32 behavioural features used to characterise algorithm
 trajectories.  Eleven features are inherited from the BLADE framework
-\cite{vanStein2025BLADE, vanStein2025Behaviour}; the remaining 21 are introduced
-in this thesis.  Of those 23, six are entirely novel metrics that have not
+\cite{vanStein2025BLADE, vanStein2025Behaviour}. The remaining 21 are introduced
+by this thesis.  Of those 21, six are entirely novel metrics that have not
 appeared in prior optimisation literature.  These novel features constitute a
-central contribution of this work: they capture aspects of search dynamics ---
-momentum, burstiness, plateau structure, and dimensional heterogeneity, that
-existing metrics overlook.
+central contribution of this work. They capture aspects of search dynamics (momentum, burstiness, plateau structure, and dimensional heterogeneity) that existing metrics overlook.
 
 Every feature is computed from a single trajectory. A trajectory is represented by a DataFrame of $T = 10{,}000$
 function evaluations in $d = 5$ dimensions with bounds $[-5, 5]$.  Columns
@@ -33,7 +31,7 @@ Four criteria guided the selection and design of behavioural features.
 
   \item \textbf{Interpretability for LLM feedback.} Features are reported to the language model as part of the behavioural feedback string. They must therefore carry clear, concise semantics that an LLM can act on. For instance, \emph{``your step sizes are erratic''} is actionable, while \emph{``your Lempel--Ziv complexity is 0.73''} is not, unless accompanied by a description.
 
-  \item \textbf{Discrimination.} Features should separate high-performing from low-performing algorithms. We quantify this via Spearman correlation with AOCC and Kolmogorov--Smirnov effect size between the top-25\% and bottom-25\% candidates.
+  \item \textbf{Discrimination.} Features should separate high-performing from low-performing algorithms. We quantify this via Spearman correlation ~\cite{spearman1904proof} with AOCC and Kolmogorov--Smirnov effect size ~\cite{kolmogorov1933} between the top-25\% and bottom-25\% candidates.
 \end{enumerate}
 
 % ============================================================================
@@ -41,33 +39,37 @@ Four criteria guided the selection and design of behavioural features.
 \label{sec:features:blade}
 
 BLADE ships with eleven behavioural metrics introduced by van~Stein et
-al.~\cite{vanStein2025Behaviour, vanStein2025BLADE}.  We group them into four
-functional categories.
+al.~\cite{vanStein2025Behaviour, vanStein2025BLADE}. We summarise them here and
+refer the reader to the original work for formal definitions.  The metrics fall
+into four functional categories.
 
 \paragraph{Exploration and diversity.}
 \begin{itemize}
-  \item \texttt{avg\_nearest\_neighbor\_distance}: mean Euclidean distance between each evaluated point and its predecessor, quantifying how much the search covers new territory at each step.
-  \item \texttt{dispersion}: maximum gap in search-space coverage (via KD-tree). Large dispersion indicates unvisited regions.
-  \item \texttt{avg\_exploration\_pct}: chunk-based measure of within-chunk variance relative to a random baseline. Its complement \texttt{avg\_exploitation\_pct} is also recorded.
+  \item \texttt{avg\_nearest\_neighbor\_distance}: mean Euclidean distance between consecutive evaluated points, quantifying how much new territory the search covers at each step.
+  \item \texttt{dispersion}: maximum gap in search-space coverage via KD-tree. Large values indicate unvisited regions.
+  \item \texttt{avg\_exploration\_pct}: chunk-based measure of
+  within-chunk variance relative to a random baseline.
 \end{itemize}
 
 \paragraph{Exploitation and intensification.}
 \begin{itemize}
   \item \texttt{avg\_distance\_to\_best}: mean distance from each evaluation to the best-so-far solution.
-  \item \texttt{intensification\_ratio}: fraction of evaluations within radius $r = 0.1 \times (\mathit{ub} - \mathit{lb})$ of the final best, defined as $I_r = T^{-1}\sum_{t}\mathbf{1}[\lVert x_t - x_{\mathrm{best}} \rVert < r]$. High values indicate strong local exploitation.
-  \item \texttt{avg\_exploitation\_pct}: complement of exploration percentage.
+  \item \texttt{intensification\_ratio}: fraction of evaluations within a fixed radius of the final best solution. High values indicate strong local exploitation.
+  \item \texttt{avg\_exploitation\_pct}: complement of
+  \texttt{avg\_exploration\_pct}, measuring the fraction of
+  within-chunk variance attributable to local refinement.
 \end{itemize}
 
 \paragraph{Convergence.}
 \begin{itemize}
   \item \texttt{average\_convergence\_rate}: geometric mean of successive best-so-far error ratios.
-  \item \texttt{avg\_improvement}: mean fitness improvement on steps that update the best-so-far, $\bar{\Delta}_f = |\mathcal{I}|^{-1}\sum_{t \in \mathcal{I}}(f^*_{t-1} - y_t)$, where $\mathcal{I} = \{t : y_t < f^*_{t-1}\}$.
-  \item \texttt{success\_rate}: fraction $|\mathcal{I}| / T$ of evaluations that improve the best-so-far.
+  \item \texttt{avg\_improvement}: mean fitness gain on steps that update the best-so-far.
+  \item \texttt{success\_rate}: fraction of all evaluations that improve the best-so-far.
 \end{itemize}
 
 \paragraph{Stagnation.}
 \begin{itemize}
-  \item \texttt{longest\_no\_improvement\_streak}: length of the longest consecutive run without best-so-far improvement. Streaks of several thousand (out of $T = 10{,}000$) indicate the algorithm has effectively stopped progressing.
+  \item \texttt{longest\_no\_improvement\_streak}: length of the longest consecutive run without best-so-far improvement. Streaks of several thousand out of $T = 10{,}000$ indicate the algorithm has effectively stopped progressing.
   \item \texttt{last\_improvement\_fraction}: how late in the budget the final improvement occurs, normalised to $[0, 1]$.
 \end{itemize}
 
@@ -78,10 +80,7 @@ functional categories.
 The first group of new features characterises the basic mechanics of how a
 candidate algorithm moves through decision space.  All four are standard
 trajectory analysis measures catalogued in the meta-feature survey by Cenikj et
-al.~\cite{cenikj2026features} We include them because BLADE does not compute
-them.
-
-Let $s_t = \lVert x_{t+1} - x_t \rVert$ denote the Euclidean step size at
+al ~\cite{cenikj2026features}. Let $s_t = \lVert x_{t+1} - x_t \rVert$ denote the Euclidean step size at
 evaluation~$t$.
 
 \paragraph{\texttt{step\_size\_mean}.}
@@ -208,7 +207,7 @@ long unbroken stagnation followed by a burst of improvements).
 Cenikj et al.~\cite{cenikj2023dynamorep} introduced DynamoRep, a set of
 trajectory-based features that characterise how a population's spatial and
 fitness distributions change across generations.  Their features assume a
-population-based algorithm with many individuals per generation.  In our
+population-based algorithm with multiple individuals per generation.  In our
 $(1{+}1)$-ES setting the population size is~1, so per-generation statistics
 are undefined.  We adapt the DynamoRep idea by comparing the first 25\% of
 evaluations (\emph{early}) with the last 25\% (\emph{late}), treating each
@@ -427,38 +426,39 @@ identifies and exploits coordinate-wise structure.
 \label{sec:features:cost}
 
 \Cref{tab:feature_cost} summarises the computational cost of each feature
-category.  Each candidate algorithm is evaluated on 50 MA-BBOB trajectories
-(10 problem instances $\times$ 5 seeds), so per-candidate cost is $50\times$
-the per-trajectory cost. The dominant cost is the existing BLADE metrics (which build a KD-tree for
-dispersion) and sample entropy (which is $O(N^2)$ even after subsampling).
-The 17 features from categories 1, 4, and~5 add under 100\,ms per candidate in
-total.
+category, measured over 50 repeated runs on a synthetic trajectory matching
+the experimental setup ($T = 10{,}000$ evaluations, $d = 5$).  Each candidate
+algorithm is evaluated on 50 MA-BBOB trajectories (10 problem instances
+$\times$ 5 seeds), so per-candidate cost is $50\times$ the per-trajectory
+cost.  The dominant cost is the existing BLADE metrics, which build a KD-tree
+for dispersion and iterate over all evaluations for nearest-neighbour
+distance.  The 17 features from categories 1, 4, and~5 add under 250\,ms per
+candidate in total.
 
 \begin{table}[t]
   \centering
-  \caption{Computational cost of behavioural feature extraction.  All timings
-    are measured on a single CPU core for $T = 10{,}000$ evaluations in $d = 5$
-    dimensions.  SampEn uses subsampled trajectories ($N = 1{,}000$).}
+  \caption{Computational cost of behavioural feature extraction.  Timings
+    are the mean of 50 runs on a single CPU core for $T = 10{,}000$ evaluations
+    in $d = 5$ dimensions.  SampEn uses subsampled trajectories ($N = 1{,}000$).}
   \label{tab:feature_cost}
   \footnotesize
-  \begin{tabular}{@{}lrrr@{}}
+  \begin{tabular}{@{}lrrl@{}}
     \toprule
-    Category & \# & Per traj. & Per cand. \\
+    Category & \# & Per traj. (ms) & Per cand. \\
     \midrule
-    Existing (BLADE)            & 11 & $\sim$1--2\,s   & $\sim$1--2\,min \\
-    Step-size dynamics          &  4 & $\sim$0.6\,ms   & $\sim$30\,ms    \\
-    Information-theoretic       &  4 & $\sim$0.6\,s    & $\sim$30\,s     \\
-    Adapted pop.\ dynamics      &  7 & $\sim$0.5\,ms   & $\sim$25\,ms    \\
-    Novel features              &  6 & $\sim$0.9\,ms   & $\sim$45\,ms    \\
+    Existing (BLADE)            & 11 & $743.7 \pm 5.3$   & $\sim$37\,s   \\
+    Step-size dynamics          &  4 & $1.6 \pm 0.1$     & $\sim$80\,ms  \\
+    Information-theoretic       &  4 & $27.5 \pm 0.5$    & $\sim$1.4\,s  \\
+    Adapted pop.\ dynamics      &  7 & $1.0 \pm 0.1$     & $\sim$48\,ms  \\
+    Novel features              &  6 & $1.5 \pm 0.1$     & $\sim$75\,ms  \\
     \midrule
-    \textbf{Total}              & \textbf{32} & $\sim$\textbf{1.6--2.6\,s} & $\sim$\textbf{1.5--2.5\,min} \\
+    \textbf{Total}              & \textbf{32} & $\mathbf{775.2 \pm 5.4}$ & $\sim$\textbf{39\,s} \\
     \bottomrule
   \end{tabular}
 \end{table}
 
 Relative to the MA-BBOB evaluation itself (30--120\,s per candidate to run
-the algorithm 50 times), the total feature extraction overhead of 1.5--2.5
-minutes represents a modest addition.  Over a full experimental run of 100
-candidates, this amounts to roughly 2.5--4 hours of feature extraction
-compared to 1--3 hours of algorithm evaluation, a ratio that is acceptable
-given the diagnostic value the features provide.
+the algorithm 50 times), the total feature extraction overhead of
+${\sim}39$\,s per candidate is modest.  Over a full experimental run of 100
+candidates, this amounts to roughly 65 minutes of feature extraction compared
+to 1--3 hours of algorithm evaluation.

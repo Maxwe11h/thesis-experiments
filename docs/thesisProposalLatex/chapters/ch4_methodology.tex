@@ -20,14 +20,14 @@ All experiments use the Large Language Model Evolutionary Algorithm (LLaMEA)~\ci
 \SetKwInOut{Output}{Output}
 \Input{Task prompt $S$, feedback prompt template $F_0$, budget $T$}
 \Output{Best algorithm $a_b$ and its quality $y_b$}
-$a_0 \gets \text{LLM}(S)$ \tcp*{Generate initial algorithm}
-$(y_0, \sigma_0, e_0) \gets f(a_0)$ \tcp*{Evaluate}
+$a_0 \gets \text{LLM}(S)$\;
+$(y_0, \sigma_0, e_0) \gets f(a_0)$\;
 $a_b \gets a_0;\; y_b \gets y_0$\;
 \For{$t \gets 1$ \KwTo $T$}{
   $F \gets (S,\; \{(\text{name}(a_i), y_i)\}_{i=0}^{t},\; (a_b, y_b, \sigma_b),\; F_0)$\;
-  $a_{t} \gets \text{LLM}(F)$ \tcp*{Mutate: refine or explore}
+  $a_{t} \gets \text{LLM}(F)$\;
   $(y_{t}, \sigma_{t}, e_{t}) \gets f(a_{t})$\;
-  \If{$e_{t} \neq \varnothing$}{$y_{t} \gets 0$ \tcp*{Runtime error: worst fitness}}
+  \If{$e_{t} \neq \varnothing$}{$y_{t} \gets 0$}
   \If{$y_{t} \geq y_b$}{$a_b \gets a_{t};\; y_b \gets y_{t};\; \sigma_b \gets \sigma_{t}$}
 }
 \Return{$a_b, y_b$}
@@ -36,13 +36,13 @@ $a_b \gets a_0;\; y_b \gets y_0$\;
 \begin{figure*}[!t]
   \centering
   \includegraphics[width=\textwidth]{figures/fig_mabbob_instances.pdf}
-  \caption{Per-function weight distribution of the selected 10 MA-BBOB instances, coloured by function group. All 24 BBOB functions are covered with near-uniform balance.}
+  \caption{Per-function weight distribution of the selected 10 MA-BBOB instances, coloured by function group. All 24 BBOB function groups are covered with near-uniform balance.}
   \label{fig:mabbob-instances}
 \end{figure*}
 
 \begin{table*}[!t]
 \centering
-\caption{BBOB function weights for the 10 selected MA-BBOB instances. Only non-zero contributions are shown (as percentage of total weight). Functions are grouped: separable (f1--f5), low/moderate conditioning (f6--f9), high conditioning/unimodal (f10--f14), multimodal adequate (f15--f19), multimodal weak (f20--f24).}
+\caption{BBOB function weights for the 10 selected MA-BBOB instances. Only non-zero contributions are shown (as percentage of total weight). Functions are grouped into separable (f1--f5), low/moderate conditioning (f6--f9), high conditioning/unimodal (f10--f14), multimodal adequate (f15--f19), multimodal weak (f20--f24).}
 \label{tab:instance-weights}
 \footnotesize
 \begin{tabular}{@{}r|ccccc|cccc|ccccc|ccccc|ccccc@{}}
@@ -74,7 +74,7 @@ $a_b \gets a_0;\; y_b \gets y_0$\;
 Every evolutionary run starts from a shared initial algorithm, \texttt{RandomSearch}, that performs uniform random sampling across the search space and returns the best sample found. Pre-seeding the population ensures that all models and conditions begin from the same starting point, so observed differences are attributable to the LLM and feedback rather than initialisation luck. LLaMEA's \texttt{initialize()} method skips LLM generation when the population is pre-filled~\cite{vanStein2024LLaMEA}.
 
 \paragraph{Mutation prompts.}
-Following the configuration identified as optimal by van Stein et al.~\cite{vanStein2025Behaviour}, we use a 90/10 refine/explore mutation mix. With 90\% probability the LLM receives a \emph{refine} prompt (``\textit{Refine and simplify the selected algorithm to improve it}''), and with 10\% probability an \emph{explore} prompt (``\textit{Generate a new algorithm that is different from those tried before}''). This balances exploitation of promising algorithm structures with exploration of novel designs.
+Following the dual-prompt configuration identified as optimal by van Stein et al.~\cite{vanStein2025Behaviour}, we combine both prompt types with a 90/10 refine/explore ratio. With 90\% probability the LLM receives a \emph{refine} prompt (``\textit{Refine and simplify the selected algorithm to improve it}''), and with 10\% probability an \emph{explore} prompt (``\textit{Generate a new algorithm that is different from those tried before}''). This balances exploitation of promising algorithm structures with exploration of novel designs.
 
 \paragraph{Selection.}
 We use elitist $(1+1)$ selection, where the offspring replaces the parent only if it achieves equal or better fitness. Recent work has explored larger population sizes. In a behaviour space study by van Stein et al.~\cite{vanStein2025Behaviour} compare six LLaMEA configurations including population-based variants with $\mu/\lambda = 4/12$, and the SAGE experiments~\cite{vanStein2026LLaMEASAGE} use $4$ parents and $16$ offspring. Notably, the $(1+1)$ elitist variant (LLaMEA-4) outperformed the population-based alternatives in the behaviour space study~\cite{vanStein2025Behaviour}. We retain the $(1+1)$ strategy for this reason and because the scale of our experiments (10 models $\times$ 5 seeds in Stage~1, 29 conditions $\times$ 5 seeds in Stage~3) makes larger populations computationally prohibitive.
@@ -90,23 +90,45 @@ After each evaluation, the LLM receives a feedback string reporting the algorith
 Candidate algorithms are evaluated on MA-BBOB (Many-Affine BBOB)~\cite{vermetten2023mabbob}, which constructs diverse problem instances by combining affine transformations of classical BBOB functions~\cite{hansen2021coco}. Each MA-BBOB instance is defined by a weight vector over the 24 BBOB functions, producing landscapes that blend multiple function characteristics. All instances are 5-dimensional with search bounds $[-5, 5]^5$.
 
 \paragraph{Instance selection.}
-From the 1{,}000 available MA-BBOB instances, we select 10 training instances using a greedy optimisation procedure that maximises function coverage and group balance (\cref{fig:mabbob-instances}). The selection criteria are: (1) all 24 BBOB functions must be represented, (2) each of the five function groups should contribute approximately 20\% of the total weight, and (3) per-function weight should be as uniform as possible. The resulting selection covers all 24 functions with group shares within $\pm$0.6\% of the ideal 20\%. \Cref{tab:instance-weights} shows the per-instance weight breakdown; each instance blends between 5 and 9 base functions.
+From the 1{,}000 available MA-BBOB instances, we select 10 training instances using the greedy procedure in \cref{alg:instance-selection}. At each step, every remaining instance is scored as a potential addition to the current set. The score favours candidates that cover BBOB functions not yet represented, that bring the five group shares closer to the ideal 20\% each, and that distribute weight evenly across functions. Missing-function coverage dominates the score (weight 100), ensuring all 24 functions are included before the procedure optimises for balance among individual functions representation. The resulting selection covers all 24 functions with group shares within $\pm$0.6\% of the ideal 20\% (\cref{fig:mabbob-instances}). \Cref{tab:instance-weights} shows the per-instance weight breakdown. Each instance blends between 5 and 9 base functions.
+
+\begin{algorithm}[t]
+\caption{Greedy MA-BBOB instance selection. At each step the candidate whose addition most reduces missing-function count, group imbalance, and per-function weight variability is selected.}
+\label{alg:instance-selection}
+\SetKwInOut{Input}{Input}
+\SetKwInOut{Output}{Output}
+\Input{$\mathbf{W} \in \mathbb{R}^{1000 \times 24}$ (weight matrix), $k = 10$}
+\Output{Selected instance set $S$}
+$S \gets \varnothing$\;
+\For{$i \gets 1$ \KwTo $k$}{
+  \ForEach{$c \notin S$}{
+    $\mathbf{w} \gets$ column sums of $\mathbf{W}[S \cup \{c\}]$\;
+    $m \gets |\{j : w_j = 0\}|$\;
+    $\sigma_g \gets \operatorname{std}(\{w_g / \sum w : g \in \text{groups}\})$\;
+    $\mathrm{CV} \gets \operatorname{std}(\mathbf{w}_{>0}) / \operatorname{mean}(\mathbf{w}_{>0})$\;
+    $\operatorname{score}(c) \gets -100\,m - 10\,\sigma_g - \mathrm{CV}$\;
+  }
+  $c^* \gets \arg\max_c \;\operatorname{score}(c)$\;
+  $S \gets S \cup \{c^*\}$\;
+}
+\Return{$S$}
+\end{algorithm}
 
 \paragraph{Evaluation protocol.}
 Each candidate algorithm is evaluated on all 10 instances across 5 random seeds, yielding 50 independent runs per candidate. The evaluation budget per run is $B = 2000 \times d = 10{,}000$ function evaluations, following the BLADE default~\cite{vanStein2025BLADE}. All evaluation is managed by IOHexperimenter~\cite{deNobel2024iohexperimenter}, which enforces budget limits, logs full trajectories, and ensures reproducibility.
 
 \paragraph{Performance metric.}
-Algorithm quality is measured by the Area Over the Convergence Curve (AOCC), an anytime performance metric in $[0, 1]$~\cite{vanStein2025BLADE}. For a single run of algorithm $a$ on function $f$ with budget $B$, the per-run area is:
+Algorithm quality is measured by the Area Over the Convergence Curve (AOCC), an anytime performance metric in $[0, 1]$~\cite{vanStein2024LLaMEA}. For a single run of algorithm $a$ on functions $f$, instance $s$ and evaluation budget $B$, the per-run area is:
 \begin{equation}
 \label{eq:aoc-run}
-\text{AOC}(y_{a,f}) = \frac{1}{B} \sum_{i=1}^{B} \left(1 - \frac{\min(\max(y_i, lb), ub) - lb}{ub - lb}\right)
+\text{AOC}(\mathbf{y}_{a,f,s}) = \frac{1}{B} \sum_{i=1}^{B} \left(1 - \frac{\min(\max(y_i, lb), ub) - lb}{ub - lb}\right)
 \end{equation}
-where $y_i$ is the log-scaled current-best fitness at evaluation $i$, and $ub = 10^{2}$, $lb = 10^{-8}$ are the clipping bounds. The AOCC for a candidate algorithm is the average over all $N$ runs (instances $\times$ seeds):
+where $\mathbf{y}_{a,f,s} = (y_1, \ldots, y_B)$ is the sequence of log-scaled best-so-far precision values, and $ub = 10^{2}$, $lb = 10^{-8}$ are the clipping bounds~\cite{vanStein2024LLaMEA}. The AOCC for a candidate algorithm is the mean over all functions $f$ and instances $s$:
 \begin{equation}
 \label{eq:aocc}
-\text{AOCC}(a) = \frac{1}{N} \sum_{f,s} \text{AOC}(y_{a,f,s})
+\text{AOCC}(a) = \frac{1}{N} \sum_{f=1}^{F} \sum_{s=1}^{S} \text{AOC}(\mathbf{y}_{a,f,s})
 \end{equation}
-In our setup $N = 50$ (10 instances $\times$ 5 seeds). This single scalar is reported to the LLM as feedback.
+In our setup $F = 10$ functions, $S = 5$ instances, giving $N = 50$ independent runs per candidate. This single scalar is reported to the LLM as feedback.
 
 \paragraph{Behavioural feature computation.}
 For every successful candidate evaluation, the full trajectory (all $T = 10{,}000$ evaluations with decision variables and fitness values) is logged via IOHexperimenter. From each trajectory, all 32 behavioural features described in \cref{ch:features} are computed post-hoc. Features are averaged across the 50 runs per candidate to produce a single feature vector per algorithm. This dataset, which comprises feature vectors for every valid candidate across all models and seeds, forms the basis for the Stage~2 feature analysis.
@@ -122,7 +144,7 @@ Ten models are evaluated, spanning locally served open-weight models and cloud A
 
 \begin{table}[t]
 \centering
-\caption{LLMs evaluated in Stage~1. Local models are served via Ollama~\cite{ollama}, while API models are accessed through Google's Gemini API. Parameter counts reflect total (not active) parameters.}
+\caption{LLMs evaluated in Stage~1. Local models are served via Ollama~\cite{ollama} or vLLM~\cite{kwon2023vllm}. API models use Google's Gemini API. Parameter counts reflect total (not active) parameters.}
 \label{tab:models}
 \footnotesize
 \begin{tabular}{@{}llrl@{}}
@@ -130,22 +152,22 @@ Ten models are evaluated, spanning locally served open-weight models and cloud A
 \textbf{Model} & \textbf{Provider} & \textbf{Params} & \textbf{Backend} \\
 \midrule
 Qwen3.5 4B   & Qwen/Alibaba~\cite{qwen3}          & 4B  & Ollama \\
-Qwen3.5 9B   & Qwen/Alibaba~\cite{qwen3}          & 9B  & Ollama \\
+Qwen3.5 9B   & Qwen/Alibaba~\cite{qwen3}          & 9B  & vLLM \\
 Qwen3.5 27B  & Qwen/Alibaba~\cite{qwen3}          & 27B & Ollama \\
 RNJ-1 8B     & Essential AI~\cite{rnj1}            & 8B  & Ollama \\
 Devstral Small~2 & Mistral AI~\cite{devstral2}     & 24B & Ollama \\
 OLMo~3 7B    & Allen AI~\cite{olmo3}               & 7B  & Ollama \\
 OLMo~3 32B Think & Allen AI~\cite{olmo3}           & 32B & Ollama \\
-Granite~4 Micro  & IBM~\cite{granite4}             & 3B  & Ollama \\
+Granite~4 Micro  & IBM~\cite{granite4}             & 3B  & vLLM \\
 \midrule
-Gemini~3 Pro     & Google~\cite{gemini3flash}      & --- & API \\
+Gemini~3 Pro     & Google~\cite{gemini3pro}      & --- & API \\
 Gemini~3 Flash   & Google~\cite{gemini3flash}      & --- & API \\
 \bottomrule
 \end{tabular}
 \end{table}
 
 \paragraph{Protocol.}
-Each model runs the LLaMEA loop for 100 candidates across 5 independent seeds (seeds 0--4), all using vanilla AOCC-only feedback. The shared initial algorithm (RandomSearch) ensures identical starting conditions. All 32 behavioural features are computed for every successful candidate, producing a dataset of several thousand algorithm--feature observations.
+Each model runs the LLaMEA loop for 100 candidates across 5 independent seeds, all using vanilla AOCC-only feedback. The shared initial algorithm (RandomSearch) ensures identical starting conditions. All 32 behavioural features are computed for every successful candidate, producing a dataset of several thousand algorithm--feature observations.
 
 \paragraph{Ranking criteria.}
 Models are ranked on a composite of three criteria:
@@ -165,18 +187,16 @@ The Stage~1 dataset, which comprises behavioural feature vectors for all valid c
 \paragraph{Ranking methods.}
 Three complementary approaches are applied:
 \begin{enumerate}
-  \item \textbf{Spearman rank correlation}~\cite{spearman1904proof} between each feature and AOCC, computed across all valid candidates. This captures monotonic associations regardless of their functional form.
+  \item \textbf{Spearman rank correlation}~\cite{spearman1904proof}: Correlation between each feature and AOCC, computed across all valid candidates. This captures monotonic associations regardless of their functional form.
   \item \textbf{Random Forest permutation importance}~\cite{breiman2001randomforests}: a Random Forest regression model is trained to predict AOCC from all 32 features, and feature importance is measured by the decrease in out-of-bag $R^2$ when each feature is permuted.
-  \item \textbf{Kolmogorov--Smirnov distributional effect size}: the KS statistic between feature distributions of top-25\% and bottom-25\% algorithms by AOCC, measuring how well each feature separates high- from low-quality algorithms.
+  \item \textbf{Kolmogorov--Smirnov distributional effect size} ~\cite{kolmogorov1933}: the KS statistic between feature distributions of top-25\% and bottom-25\% algorithms by AOCC, measuring how well each feature separates high- from low-quality algorithms.
 \end{enumerate}
 
 \paragraph{Consensus ranking.}
-Each method produces a ranked list of 32 features. These are aggregated via Borda count: each feature receives $32 - r_i$ points from each method (where $r_i$ is its rank in method $i$), and total scores determine the consensus ranking.
+Each method produces a ranked list of 32 features. These are aggregated via Borda count. Each feature receives $32 - r_i$ points from each method (where $r_i$ is its rank in method $i$). Summed scores determine the consensus ranking with lower values indicating a better feature.
 
 \paragraph{Redundancy pruning.}
 Features are processed in Borda-rank order. If a candidate feature has Spearman $|\rho| > 0.8$ with any already-selected feature, it is discarded as redundant. This greedy de-duplication ensures the selected set captures distinct aspects of algorithm behaviour.
-
-The final output is a set of 10 features, of which 3 come from the existing BLADE metrics and 7 are novel features introduced in this thesis, that are carried forward to Stage~3. The full selection results are presented in \cref{sec:results-features}.
 
 % ---------------------------------------------------------------------------
 \section{Feedback Format Screening}
@@ -184,11 +204,8 @@ The final output is a set of 10 features, of which 3 come from the existing BLAD
 
 This stage tests whether adding a single behavioural feature to the LLM's feedback improves algorithm quality, and whether the \emph{framing} of that feedback matters.
 
-\paragraph{Model.}
-All Stage~3 experiments use Gemini~3 Flash~\cite{gemini3flash}, identified as the best model in Stage~1 on the composite of quality and efficiency (\cref{sec:results-screening}).
-
 \paragraph{Experimental design.}
-Each of the 10 selected features is tested individually. For each feature, three feedback formats are compared, yielding $10 \times 3 = 30$ conditions. One condition is excluded (comparative feedback for \texttt{longest\_no\_improvement\_streak}, due to a non-monotonic relationship with AOCC, as discussed below), giving 29 active conditions. Each condition is run for 100 candidates across 5 independent seeds (seeds 0--4), using the same shared initial population as Stage~1. The vanilla AOCC-only results from Stage~1's Gemini~3 Flash runs serve as the baseline.
+Each of the 10 selected features is tested individually. For each feature, three feedback formats are compared. One condition is excluded (comparative feedback for \texttt{longest\_no\_improvement\_streak}, due to a non-monotonic relationship with AOCC), giving 29 active conditions. Each condition is run for 100 candidates across 5 independent seeds. The vanilla AOCC-only results from the LLM screening phase serve as the baseline.
 
 \subsection{Feedback Formats}
 \label{sec:meth-feedback-formats}
@@ -204,7 +221,7 @@ The algorithm X got an average AOCC score of 0.7234 with standard deviation 0.08
 \end{quote}
 
 \paragraph{Directional.}
-Extends the neutral format with a sentence indicating which direction is associated with better performance. The direction is derived from the Stage~2 Spearman correlation analysis:
+Extends the neutral format with a sentence indicating which direction is associated with better performance. The direction is derived from the prior Spearman correlation analysis:
 
 \begin{quote}
 \small\itshape
@@ -212,55 +229,20 @@ Extends the neutral format with a sentence indicating which direction is associa
 \end{quote}
 
 \paragraph{Comparative.}
-Replaces the directional guidance with a distance-aware comparison against a concrete reference value. The reference is the median feature value of top-10\% algorithms by AOCC from the Stage~1 dataset ($n = 280$, AOCC $\geq 0.847$). The language adapts based on how far the candidate's value falls from this reference, using four tiers:
+Replaces the directional guidance with a distance-aware comparison against a concrete reference value. The reference is the median feature value of top-10\% algorithms by AOCC from the LLM screening stage ($n = 280$, AOCC $\geq 0.847$). The normalised distance from this reference is $d = (v_{\text{ref}} - v) / (v_{\text{top10}} - v_{\text{bot25}})$, where $v$ is the candidate's feature value, $v_{\text{ref}} = v_{\text{top10}}$ is the top-10\% median, and $v_{\text{bot25}}$ is the bottom-25\% median (AOCC $\leq 0.233$, essentially RandomSearch-level performance). This denominator provides a meaningful scale representing the range between good and bad algorithms for each feature. The feedback language adapts across four tiers:
 
-\begin{table}[t]
-\centering
-\caption{Comparative feedback tiers based on normalised distance from the top-10\% reference.}
-\label{tab:comparative-tiers}
-\footnotesize
-\begin{tabular}{@{}rl@{}}
-\toprule
-\textbf{Distance} & \textbf{Tier} \\
-\midrule
-$\leq 0$      & Already meets reference \\
-$0$--$0.15$   & Close to reference \\
-$0.15$--$0.50$ & Moderate gap \\
-$> 0.50$      & Far from reference \\
-\bottomrule
-\end{tabular}
-\end{table}
-
-The normalised distance is $d = (v_{\text{ref}} - v) / (v_{\text{top10}} - v_{\text{bot25}})$. For example, at distance $\leq 0$ the feedback reads: ``\textit{This already meets or exceeds the top-performing reference of 0.9070. Maintain this.}'' At distance $> 0.50$: ``\textit{This is far from the reference. Increasing this value is a priority.}''
-
-The normalised distance is computed as $d = (v_{\text{ref}} - v) / (v_{\text{top10}} - v_{\text{bot25}})$, where $v$ is the candidate's feature value, $v_{\text{ref}} = v_{\text{top10}}$ is the top-10\% median, and $v_{\text{bot25}}$ is the bottom-25\% median. The bottom-25\% anchor (AOCC $\leq 0.233$, essentially RandomSearch-level performance) provides a meaningful scale: it represents the range between good and bad algorithms for each feature.
+\begin{enumerate}
+  \item \textbf{Already meets reference} ($d \leq 0$): ``\textit{This already meets or exceeds the top-performing reference of 0.9070. Maintain this.}''
+  \item \textbf{Close to reference} ($0 < d \leq 0.15$): ``\textit{This is close to the top-performing reference of 0.9070. A small increase could help.}''
+  \item \textbf{Moderate gap} ($0.15 < d \leq 0.50$): ``\textit{This is moderately below the top-performing reference of 0.9070. Consider increasing this value.}''
+  \item \textbf{Far from reference} ($d > 0.50$): ``\textit{This is far from the reference of 0.9070. Increasing this value is a priority.}''
+\end{enumerate}
 
 \paragraph{Excluded condition.}
 Comparative feedback is excluded for \texttt{longest\_no\_improvement\_streak} because this feature has a U-shaped relationship with AOCC. Top-performing algorithms have high streak values ($\sim$5{,}327) because they converge early and coast through the remaining budget. Bottom-performing algorithms also have high values ($\sim$6{,}264) because they stagnate. A single reference target would be misleading in this non-monotonic case.
 
 % ---------------------------------------------------------------------------
-\section{Statistical Methodology}
-\label{sec:meth-stats}
-
-\paragraph{Overall format comparison.}
-The Kruskal--Wallis test~\cite{kruskal1952ranks} is used to compare the distributions of best AOCC values across the three feedback formats (neutral, directional, comparative), pooling all features within each format.
-
-\paragraph{Pairwise comparisons.}
-Mann--Whitney $U$ tests~\cite{mann1947test} are applied for pairwise format comparisons within each feature, with Bonferroni correction for multiple comparisons.
-
-\paragraph{Effect sizes.}
-Cliff's delta~\cite{cliff1993dominance} is reported for all pairwise comparisons, with thresholds $|d| < 0.147$ (negligible), $< 0.33$ (small), $< 0.474$ (medium), $\geq 0.474$ (large).
-
-\paragraph{AOCC-matched analysis.}
-To disentangle whether feedback changes algorithm behaviour from whether it improves performance, we compare behavioural feature distributions \emph{within} AOCC quality bands. All valid candidates across all conditions are binned into four bands: low (AOCC 0.3--0.5), mid (0.5--0.7), high (0.7--0.85), and elite ($> 0.85$). Within each band, Kruskal--Wallis tests compare feature distributions across formats. This controls for algorithm quality and isolates the behavioural effect of feedback format.
-
-% ---------------------------------------------------------------------------
 \section{Infrastructure}
 \label{sec:meth-infrastructure}
 
-Experiments are executed on two LIACS compute servers:
-\begin{itemize}
-  \item \textbf{vibranium}: 2$\times$ NVIDIA RTX~3090 GPUs, used for serving larger Ollama models (27B, 32B).
-  \item \textbf{duranium}: 6$\times$ NVIDIA GTX~980~Ti and 2$\times$ Titan~X GPUs, used for smaller models and parallel runs.
-\end{itemize}
-Local models are served via Ollama~\cite{ollama}, with vLLM~\cite{kwon2023vllm} available as an alternative backend for higher-throughput inference. Gemini~3 models~\cite{gemini, gemini3flash} are accessed through Google's Gemini API. All code, configuration, and analysis notebooks are available in the thesis repository.\footnote{\url{https://github.com/maxharell/thesis}} The BLADE benchmarking framework~\cite{vanStein2025BLADE} and LLaMEA~\cite{vanStein2024LLaMEA} are included as Git submodules, with minor modifications to support custom feedback strings and extended behavioural metric logging.
+All experiments are executed on the LIACS SLURM cluster node \textbf{saronite}, equipped with 4$\times$ NVIDIA L40S GPUs (48\,GB each), 2$\times$ 32-core Intel Xeon Gold 6438M CPUs, and 512\,GB RAM. Most local models are served via Ollama~\cite{ollama}, which processes requests sequentially in a queue. For Qwen3.5~9B and Granite~4~Micro, we use vLLM~\cite{kwon2023vllm}, which supports continuous batching and manages KV caches efficiently via PagedAttention~\cite{kwon2023vllm}. This allows multiple seeds to issue concurrent inference requests rather than waiting in a serial queue, reducing wall-clock time per evolutionary run. Gemini~3 models~\cite{gemini3pro, gemini3flash} are accessed through Google's Gemini API. All code, configuration, and analysis notebooks are available in the thesis repository.\footnote{\url{https://github.com/maxharell/thesis}} The BLADE benchmarking framework~\cite{vanStein2025BLADE} and LLaMEA~\cite{vanStein2024LLaMEA} are included as Git submodules, with minor modifications to support custom feedback strings and extended behavioural metric logging.

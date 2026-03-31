@@ -5,16 +5,14 @@
 \chapter{Results}
 \label{ch:results}
 
-This section presents the results of the three experimental stages. Stage~1 (\cref{sec:results-screening}) identifies the best LLM for algorithm design. Stage~2 (\cref{sec:results-features}) selects the behavioural features most predictive of algorithm quality. Stage~3 (\cref{sec:results-feedback}), the central contribution of this thesis, evaluates the effect of feedback format on algorithm design.
-
 % ===========================================================================
-\section{Stage 1: LLM Screening}
+\section{LLM Screening}
 \label{sec:results-screening}
 
-\subsection{Model Ranking}
+\paragraph{Model Ranking}
 \label{sec:results-model-ranking}
 
-\Cref{tab:model-ranking} presents the performance ranking of all 10 models, sorted by mean best AOCC across 5 seeds.
+\Cref{tab:model-ranking} presents the performance ranking of all 10 models, sorted by mean best AOCC across 5 seeds. The API models clearly dominate. Gemini~3 Pro achieves the highest mean best AOCC of $0.885 \pm 0.011$ with remarkable consistency across seeds, while Gemini~3 Flash follows closely at $0.862$ with the lowest failure rate of any model at just $2.0\%$. The convergence curves in \cref{fig:model-screening}b show that Gemini models improve steadily throughout the full 100-evaluation budget, whereas most open-weight models plateau early or stagnate after initial gains.
 
 \begin{table}[t]
 \centering
@@ -39,194 +37,197 @@ This section presents the results of the three experimental stages. Stage~1 (\cr
 \end{tabular}
 \end{table}
 
-\begin{figure}[t]
+\begin{figure*}[!t]
   \centering
-  \includegraphics[width=\columnwidth]{figures/fig_model_ranking.pdf}
-  \caption{Mean best AOCC by model ($\pm$ std across 5 seeds). API models (Gemini) dominate, while model size does not predict performance among local models.}
-  \label{fig:model-ranking}
-\end{figure}
+  \includegraphics[width=\textwidth]{figures/fig_model_screening.pdf}
+  \caption{LLM screening results. (a)~Mean best AOCC by model ($\pm$ std across 5 seeds). (b)~Best-so-far AOCC over 100 evaluations, averaged across 5 seeds. Shaded regions show $\pm$1 std.}
+  \label{fig:model-screening}
+\end{figure*}
 
-The Kruskal--Wallis test confirms significant differences across models ($H = 38.6$, $p < 0.001$). Several patterns emerge:
 
-\begin{itemize}
-  \item \textbf{API models dominate.} Gemini~3 Pro achieves the highest mean best AOCC ($0.885 \pm 0.011$) with remarkable consistency (bootstrap 95\% CI: $[0.875, 0.893]$). Gemini~3 Flash is close behind ($0.862$) with the lowest failure rate ($2.0\%$).
+Among open-weight models, performance does not scale with parameter count. Qwen3.5~27B achieves $0.817$, outperforming the larger OLMo~3 32B at $0.690$. Granite~4, the smallest model at just 3B parameters, reaches $0.569$ and outperforms both Qwen3.5~9B at $0.373$ and RNJ-1~8B at $0.254$. This suggests that code generation ability for optimisation algorithms depends more on training data and architecture than on raw scale. Failure rates vary dramatically, from $2.0\%$ for Gemini~3 Flash to $91.6\%$ for Qwen3.5~9B, which fails to produce a valid algorithm class in the vast majority of attempts. Wall-clock time also varies substantially. The two models served via vLLM, Granite~4 at 0.6\,h/run and Qwen3.5~9B at 3.0\,h/run, benefit from continuous batching that allows concurrent seed evaluation. The largest open-weight models, Qwen3.5~27B and OLMo~3 32B, require approximately 39 hours per run under Ollama due to both model size and serial request queuing.
 
-  \item \textbf{Size does not predict quality.} Qwen3.5~27B ($0.817$) outperforms the larger OLMo~3 32B ($0.690$). Granite~4 at 3B ($0.569$) outperforms both Qwen3.5~9B ($0.373$) and RNJ-1~8B ($0.254$).
-
-  \item \textbf{Failure rates vary dramatically}, from $2.0\%$ (Gemini~3 Flash) to $91.6\%$ (Qwen3.5~9B).
-\end{itemize}
-
-% Placeholder for convergence figure - export from notebook
-\begin{figure}[t]
-  \centering
-  \includegraphics[width=\columnwidth]{figures/fig_model_convergence.pdf}
-  \caption{Best-so-far AOCC over 100 evaluations for each model, averaged across 5 seeds. Shaded regions show $\pm$1 standard deviation.}
-  \label{fig:model-convergence}
-\end{figure}
-
-\subsection{Failure Mode Analysis}
+\paragraph{Failure Mode Analysis}
 \label{sec:results-failures}
 
-Across all 10 models and 5 seeds (5{,}000 total candidates), $3{,}071$ ($61.4\%$) produced valid fitness scores. Failures are dominated by runtime errors (logic bugs in generated code) for top models, and structural failures (producing functions instead of classes) for weaker models. RNJ-1 exhibits extreme failure burstiness: a $0.871$ probability of consecutive failure (vs.\ $0.074$ after a success), with a maximum streak of 81.
+Across all 10 models and 5 seeds, 5{,}000 candidates were generated in total, of which $3{,}071$ or $61.4\%$ produced valid fitness scores. The nature of failures differs systematically between strong and weak models. The top performing Gemini models have the lowest failure rates and predominantly fail due to runtime errors, where the generated code has the correct class interface but contains logic bugs that cause exceptions during evaluation. Weaker models instead produce structural failures, generating standalone functions rather than the required Python class or omitting mandatory constructor parameters.
+
 
 \begin{figure}[t]
   \centering
   \includegraphics[width=\columnwidth]{figures/fig_failure_modes.pdf}
-  \caption{Failure mode distribution by model. Categories: runtime errors (correct interface, logic bugs), structural failures (no class produced), and import errors.}
+  \caption{Failure mode distribution by model. Categories include runtime errors (correct interface, logic bugs), structural failures (no class produced), and import errors.}
   \label{fig:failure-modes}
 \end{figure}
 
-\subsection{Model Selection}
-\label{sec:results-model-selection}
+\paragraph{Behavioural Space}
+\label{sec:results-behavioural-space}
 
-\textbf{Gemini~3 Flash} is selected for Stage~3 based on its combination of competitive AOCC ($0.862$), lowest failure rate ($2.0\%$), and fast inference (3.9h/run). Its vanilla performance across 5 seeds ($0.862 \pm 0.097$) serves as the baseline for all Stage~3 comparisons.
-
-The best algorithms reveal distinct model tendencies: Gemini produced CMA-ES variants (\texttt{BIP\_AMOS\_NES}, AOCC $= 0.923$), while open-weight models favoured Differential Evolution with local search. Code similarity confirms high diversity across models (mean pairwise similarity $= 0.061$).
-
-% ===========================================================================
-\section{Stage 2: Feature Analysis and Selection}
-\label{sec:results-features}
-
-The Stage~1 dataset contains $3{,}071$ valid candidates with behavioural feature vectors. None of the 32 features exhibited $>$50\% missing values.
-
-\subsection{Feature--AOCC Correlations}
-\label{sec:results-correlations}
-
-\begin{figure}[t]
+\begin{figure*}[p]
   \centering
-  \includegraphics[width=\columnwidth]{figures/fig_spearman_heatmap.pdf}
-  \caption{Spearman rank correlation ($\rho$) between each behavioural feature and AOCC across all valid candidates. Features sorted by $|\rho|$.}
-  \label{fig:spearman-heatmap}
-\end{figure}
+  \includegraphics[width=\textwidth]{figures/fig_tsne_behavioral.pdf}
+  \caption{t-SNE projection of the behavioural feature space for all $3{,}071$ valid algorithms. (a)~Points coloured by model reveal distinct clustering. Each LLM occupies a characteristic region, with some models forming elongated trajectories indicating incremental refinement. (b)~Points coloured by AOCC show that high-performing algorithms (yellow) concentrate in specific regions, while low-performing ones (purple) spread diffusely.}
+  \label{fig:tsne-behavioral}
+\end{figure*}
 
-Spearman correlations (Bonferroni-corrected) reveal strong associations. The top-5 by $|\rho|$: \texttt{avg\_improvement} ($-0.782$), \texttt{step\_size\_autocorrelation} ($+0.766$), \texttt{improvement\_spatial\_correlation} ($+0.757$), \texttt{intensification\_ratio} ($+0.725$), and \texttt{fitness\_plateau\_fraction} ($+0.685$). All significant at $p < 0.001$. Notably, four of five are novel features from this thesis.
-
-A Random Forest trained on all 32 features achieves OOB $R^2 = 0.962$, showing that behavioural features almost entirely determine AOCC.
-
-\subsection{Consensus Ranking and Selection}
-\label{sec:results-selection}
-
-Three ranking methods (Spearman, RF importance, KS effect) are aggregated via Borda count. \Cref{tab:selected-features} shows the 10 features retained after greedy de-duplication ($|\rho| > 0.8$).
-
-\begin{table}[t]
+\begin{table*}[p]
 \centering
-\caption{Selected features for Stage~3 (Borda consensus, $|\rho|>0.8$ de-duplication).}
-\label{tab:selected-features}
+\caption{All 32 behavioural features ranked by Borda consensus. For each method, both the value and rank are shown. The Status column indicates whether a feature was selected for feedback experiments, pruned for redundancy (with the correlated selected feature noted), or not selected.}
+\label{tab:feature-consensus}
 \footnotesize
-\begin{tabular}{@{}rlrr@{}}
+\setlength{\tabcolsep}{3.5pt}
+\begin{tabular}{@{}rlrrrrrrl@{}}
 \toprule
-\textbf{\#} & \textbf{Feature} & \textbf{Src} & \boldmath{$\rho$} \\
+& & \multicolumn{2}{c}{\textbf{Spearman}} & \multicolumn{2}{c}{\textbf{RF Importance}} & \multicolumn{2}{c}{\textbf{KS}} & \\
+\cmidrule(lr){3-4} \cmidrule(lr){5-6} \cmidrule(lr){7-8}
+\textbf{Borda} & \textbf{Feature} & \boldmath{$\rho$} & \textbf{R} & \textbf{Imp} & \textbf{R} & \textbf{Stat} & \textbf{R} & \textbf{Status} \\
 \midrule
-1  & avg\_improvement          & B & $-$.782 \\
-2  & intensification\_ratio    & B & $+$.725 \\
-3  & fitness\_plateau\_frac    & T & $+$.685 \\
-4  & step\_size\_autocorr      & T & $+$.766 \\
-5  & impr\_spatial\_corr       & T & $+$.757 \\
-6  & half\_convergence\_time   & T & $-$.597 \\
-7  & fitness\_autocorrelation  & T & $+$.645 \\
-8  & x\_spread\_early          & T & $-$.599 \\
-9  & longest\_no\_improv\_streak & B & $-$.469 \\
-10 & dim\_conv\_heterogeneity  & T & $+$.471 \\
+3  & avg\_improvement              & $-$.782 &  1 & .291 &  1 & .938 &  1 & \textbf{Selected} \\
+7  & success\_rate                 & $+$.766 &  2 & .107 &  3 & .899 &  2 & Pruned ($|r|{=}.92$, avg\_impr) \\
+13 & intensification\_ratio        & $+$.725 &  5 & .068 &  4 & .894 &  4 & \textbf{Selected} \\
+15 & fitness\_plateau\_frac        & $+$.685 &  7 & .215 &  2 & .867 &  6 & \textbf{Selected} \\
+18 & step\_size\_autocorr          & $+$.766 &  3 & .007 & 10 & .881 &  5 & \textbf{Selected} \\
+28 & impr\_spatial\_corr           & $+$.757 &  4 & .002 & 21 & .899 &  3 & \textbf{Selected} \\
+36 & fitness\_sample\_entropy      & $-$.680 &  8 & .002 & 20 & .845 &  8 & Pruned ($|r|{=}.87$, plateau\_frac) \\
+37 & half\_convergence\_time       & $-$.597 & 14 & .004 & 14 & .840 &  9 & \textbf{Selected} \\
+38 & fitness\_autocorrelation      & $+$.645 &  9 & .002 & 19 & .835 & 10 & \textbf{Selected} \\
+40 & avg\_distance\_to\_best       & $-$.691 &  6 & .001 & 27 & .852 &  7 & Pruned ($|r|{=}.96$, intens\_ratio) \\
+40 & x\_spread\_early              & $-$.599 & 13 & .006 & 13 & .775 & 14 & \textbf{Selected} \\
+43 & longest\_no\_improv\_streak   & $-$.469 & 16 & .016 &  7 & .703 & 20 & \textbf{Selected} \\
+44 & avg\_nn\_distance             & $-$.469 & 17 & .012 &  8 & .720 & 19 & Pruned ($|r|{=}.82$, x\_spread) \\
+48 & step\_size\_mean              & $-$.622 & 10 & .001 & 25 & .806 & 13 & Pruned ($|r|{=}.83$, intens\_ratio) \\
+52 & avg\_exploitation\_pct        & $+$.612 & 12 & .001 & 28 & .808 & 12 & Pruned ($|r|{=}.87$, intens\_ratio) \\
+55 & avg\_exploration\_pct         & $-$.612 & 11 & .000 & 32 & .808 & 12 & Pruned ($|r|{=}.87$, intens\_ratio) \\
+55 & dim\_conv\_heterogeneity      & $+$.471 & 15 & .001 & 23 & .727 & 17 & \textbf{Selected} \\
+\midrule
+55 & average\_convergence\_rate    & $-$.400 & 22 & .030 &  6 & .604 & 27 & --- \\
+57 & fitness\_perm\_entropy        & $-$.238 & 27 & .047 &  5 & .622 & 25 & --- \\
+58 & dispersion                    & $+$.421 & 21 & .003 & 16 & .664 & 21 & --- \\
+64 & improvement\_burstiness       & $+$.370 & 24 & .003 & 17 & .635 & 23 & --- \\
+65 & last\_improvement\_frac       & $-$.370 & 25 & .006 & 12 & .555 & 28 & --- \\
+65 & step\_size\_std               & $-$.437 & 20 & .001 & 29 & .755 & 16 & --- \\
+65 & x\_spread\_late               & $-$.450 & 19 & .000 & 31 & .759 & 15 & --- \\
+66 & f\_range\_early               & $-$.466 & 18 & .001 & 24 & .624 & 24 & --- \\
+68 & step\_size\_trend             & $-$.228 & 28 & .006 & 11 & .538 & 29 & --- \\
+71 & f\_range\_late                & $-$.394 & 23 & .000 & 30 & .724 & 18 & --- \\
+71 & centroid\_drift               & $+$.177 & 30 & .004 & 15 & .612 & 26 & --- \\
+72 & fitness\_lempel\_ziv          & $+$.152 & 31 & .010 &  9 & .380 & 32 & --- \\
+74 & f\_range\_ratio               & $-$.313 & 26 & .001 & 26 & .654 & 22 & --- \\
+81 & spread\_ratio                 & $-$.224 & 29 & .001 & 22 & .511 & 30 & --- \\
+81 & directional\_persistence      & $+$.139 & 32 & .002 & 18 & .502 & 31 & --- \\
 \bottomrule
 \end{tabular}
 \\[0.3em]
-{\scriptsize B = BLADE~\cite{vanStein2025Behaviour}, T = This thesis.}
-\end{table}
+{\scriptsize Borda = sum of ranks (lower is better). R = rank within method. Values are rounded to 3 decimal places. Where features appear tied, ranks reflect the full-precision ordering. Features above the mid-rule were evaluated by the greedy selection and those below were not considered (10 slots already filled). Pruned features show $|r|$ with the correlated selected feature.}
+\end{table*}
 
-Three features come from BLADE, and seven are new. Seven redundant features were pruned (e.g., \texttt{success\_rate}, $|\rho|=0.917$ with \texttt{avg\_improvement}).
+\begin{figure*}[!t]
+  \centering
+  \includegraphics[width=\textwidth]{figures/fig_spearman.pdf}
+  \caption{Spearman rank correlation $\rho$ between each behavioural feature and AOCC across all $3{,}071$ valid candidates, sorted by $|\rho|$ and coloured by feature category. All features significant at $p < 0.001$ after Bonferroni correction.}
+  \label{fig:spearman}
+\end{figure*}
+
+\Cref{fig:tsne-behavioral} projects all valid candidates into a two-dimensional behavioural space via t-SNE on the 32 standardised features. Several patterns emerge. First, algorithms from the same model cluster together, confirming that each LLM produces a characteristic behavioural signature. The Gemini models dominate the upper-left quadrant, which panel~(b) reveals as the high-AOCC region (predominantly yellow-green). Second, several models produce elongated, chain-like trajectories rather than round clusters. RNJ-1 (right side) shows this most clearly, forming distinct arcs that trace the $(1+1)$-ES refinement path through behavioural space. Third, some models fragment into multiple sub-clusters, corresponding to different seeds exploring distinct algorithmic strategies. Fourth, the highest-performing algorithms from open-weight models (Qwen3.5~27B, OLMo~32B) partially overlap with the Gemini cluster, suggesting that strong optimisation behaviour converges to similar behavioural profiles regardless of the generating model. Weaker models (RNJ-1, Qwen3.5~4B) are confined to peripheral, low-AOCC regions with no overlap.
+
+\paragraph{Model Selection}
+\label{sec:results-model-selection}
+
+Gemini~3 Flash is selected for future experiments based on its combination of competitive AOCC ($0.862$), lowest failure rate ($2.0\%$), and fast inference (3.9h/run). Its vanilla performance across 5 seeds ($0.862 \pm 0.097$) serves as the baseline for all Stage~3 comparisons.
 
 % ===========================================================================
-\section{Stage 3: Behavioural Feedback}
+
+\section{Feature Analysis and Selection}
+\label{sec:results-features}
+
+The Stage~1 dataset contains $3{,}071$ valid candidates. Each is accompanied by a 32-dimensional behavioural feature vector computed from its evaluation trajectory. This section determines which features are most predictive of algorithm quality and selects a tractable subset for the feedback experiments.
+
+\begin{figure*}[p]
+  \centering
+  \includegraphics[width=\textwidth]{figures/fig_rf_importance.pdf}
+  \caption{Random Forest permutation importance for all 32 features, sorted by importance. Error bars show standard deviation across 10 permutation repeats.}
+  \label{fig:rf-importance}
+\end{figure*}
+
+\begin{figure*}[p]
+  \centering
+  \includegraphics[width=\textwidth]{figures/fig_ks_effect.pdf}
+  \caption{KS distributional effect size between top-25\% and bottom-25\% algorithms by AOCC, sorted by KS statistic. Feature values are winsorized at the 1st/99th percentile before testing.}
+  \label{fig:ks-effect}
+\end{figure*}
+
+\paragraph{Feature--AOCC Correlations}
+\label{sec:results-correlations}
+
+\Cref{fig:spearman} shows the Spearman rank correlation between each of the 32 behavioural features and AOCC. Given the sample size, all 32 correlations are statistically significant at $p < 0.001$ after Bonferroni correction, so significance is not a useful discriminator. Instead, we focus on the magnitude and direction of $\rho$ to understand which behaviours characterise high-performing algorithms.
+
+The five strongest associations are \texttt{avg\_improvement} ($-0.782$), \texttt{success\_rate} ($+0.766$), \texttt{step\_size\_autocorrelation} ($+0.766$), \texttt{improvement\_spatial\_correlation} ($+0.757$), and \texttt{intensification\_ratio} ($+0.725$). Three of these five are novel features introduced in this thesis.
+
+Examining correlations by feature category reveals a clear behavioural profile of successful algorithms. The \emph{exploitation} features show the strongest positive associations. High \texttt{intensification\_ratio} ($+0.725$) and low \texttt{avg\_distance\_to\_best} ($-0.691$) indicate that good algorithms focus their search near the best-known solution. The \emph{convergence} features reinforce this picture. Low \texttt{avg\_improvement} ($-0.782$) means the algorithm has already found good solutions early, leaving less room for further gains, while high \texttt{fitness\_plateau\_fraction} ($+0.685$) reflects spending more of the budget in a converged state. Among the \emph{step-size and movement} features, \texttt{step\_size\_autocorrelation} ($+0.766$) stands out, indicating that smooth, momentum-driven step sizes outperform erratic adjustments. The \emph{early/late dynamics} features confirm that successful algorithms do not waste early evaluations on broad exploration. \texttt{x\_spread\_early} ($-0.599$) shows that narrower initial search correlates with higher AOCC. In contrast, the \emph{exploration} features show moderate negative correlations ($|\rho| \approx 0.4$--$0.6$), suggesting that excessive diversity is counterproductive on this benchmark. The weakest associations appear among structural features such as \texttt{directional\_persistence} ($+0.139$) and \texttt{fitness\_lempel\_ziv\_complexity} ($+0.152$), which capture trajectory properties largely uncorrelated to AOCC.
+
+\paragraph{Predictive Power}
+\label{sec:results-rf}
+
+To capture non-linear and interaction effects that Spearman correlation misses, a Random Forest regressor with 200 trees is trained on all 32 features to predict AOCC. The model achieves an out-of-bag $R^2$ of $0.962$ and a mean absolute error of $0.024$ AOCC units. The $R^2$ indicates that 96.2\% of the variance in AOCC across candidates is explained by their behavioural features, while the MAE means the model's predictions are off by just 0.024 on average. This tight fit is expected because the features are computed from the same evaluation trajectory that determines AOCC. They are not independent predictors but rather complementary summaries of the underlying search dynamics.
+
+\Cref{fig:rf-importance} shows the permutation importance ranking. While the same features appear near the top as in the Spearman analysis, the relative weighting differs notably. Two features dominate: \texttt{avg\_improvement} ($0.291$) and \texttt{fitness\_plateau\_fraction} ($0.215$) account for the majority of predictive power, far exceeding the third-ranked \texttt{success\_rate} ($0.107$). This concentration suggests that convergence behaviour, specifically how quickly and completely an algorithm reaches a plateau, is the single most important determinant of AOCC. In contrast, \texttt{step\_size\_autocorrelation}, which ranks third by Spearman $|\rho|$, drops to rank 10 by importance. This indicates that while smooth step sizes correlate with quality, their predictive value is largely captured by other features in the ensemble. The RF ranking also elevates \texttt{average\_convergence\_rate} (rank 6) and \texttt{fitness\_permutation\_entropy} (rank 5), features with moderate Spearman correlations but apparently strong non-linear predictive power.
+
+\paragraph{Distributional Separation}
+\label{sec:results-ks}
+
+The third ranking method takes a distributional approach. For each feature, we split the $3{,}071$ valid candidates into a top-25\% group and a bottom-25\% group by AOCC, then measure how well the feature separates these groups using the Kolmogorov--Smirnov statistic (\cref{fig:ks-effect}). Feature values are winsorized at the 1st and 99th percentiles before testing to prevent extreme outliers from inflating the statistic. Unlike Spearman correlation, the KS statistic is sensitive to any distributional difference, not just monotonic trends, making it a complementary signal.
+
+The KS ranking largely agrees with Spearman on which features matter most. However, the KS statistic reveals additional structure. Several features that ranked moderately by Spearman show very high KS values, indicating they separate good from bad algorithms through non-monotonic or threshold effects rather than smooth linear trends. For example, \texttt{avg\_exploitation\_pct} and \texttt{step\_size\_mean} both achieve KS statistics above 0.8 despite more moderate Spearman $|\rho|$ values. At the bottom of the KS ranking, features like \texttt{fitness\_lempel\_ziv\_complexity} and \texttt{spread\_ratio} show weak distributional separation, confirming that they carry little information about algorithm quality regardless of the statistical method used.
+
+\paragraph{Consensus Ranking and Selection}
+\label{sec:results-selection}
+
+The three ranking methods each capture a different aspect of feature quality. Spearman measures monotonic association, RF importance captures non-linear predictive power, and KS quantifies distributional separation. To combine them into a single consensus, we apply Borda count. Each feature's score is the sum of its ranks across all three methods, so a feature that ranks highly across all three receives a low Borda score. Features are then selected greedily in Borda order. At each step, a candidate feature is accepted unless it has Spearman inter-feature correlation $|\rho| > 0.8$ with any already-selected feature, in which case it is pruned as redundant. This continues until 10 features are selected. \Cref{tab:feature-consensus} presents all 32 features with their per-method values and ranks, sorted by Borda score.
+
+The final set comprises three BLADE features and seven novel features from this thesis, validating the feature design effort described in \cref{ch:features}. \Cref{tab:feature-consensus} reveals that \texttt{intensification\_ratio} alone makes four other metrics redundant, including two BLADE exploration/exploitation percentages and the widely used \texttt{avg\_distance\_to\_best}. Several features with strong individual method rankings fail the consensus. For example \texttt{fitness\_permutation\_entropy} ranks 5th by RF importance but only 27th by Spearman.
+
+% ===========================================================================
+\section{Behavioural Feedback}
 \label{sec:results-feedback}
 
-\subsection{Overall Format Comparison}
-\label{sec:results-overall}
-
-\begin{table}[t]
-\centering
-\caption{Overall performance by format (all 10 features pooled).}
-\label{tab:format-overall}
-\footnotesize
-\begin{tabular}{@{}lrrr@{}}
-\toprule
-\textbf{Format} & \textbf{AOCC} & \textbf{Rank} & \textbf{Wins} \\
-\midrule
-Neutral     & 0.855 & 1.62 & 29/50 \\
-Directional & 0.827 & 1.84 & 16/50 \\
-Comparative & 0.784 & 2.49 & ~5/50 \\
-\bottomrule
-\end{tabular}
-\end{table}
-
-The Kruskal--Wallis test confirms a significant difference among formats ($p = 0.003$). Neutral dominates on all three metrics (\cref{tab:format-overall}). More prescriptive guidance correlates with worse performance.
-
-Neutral conditions also have the \emph{highest} failure rate ($3.5\%$ vs.\ $2.6\%$ directional, $1.5\%$ comparative), suggesting neutral feedback encourages more ambitious algorithm designs.
-
-\begin{figure}[t]
-  \centering
-  \includegraphics[width=\columnwidth]{figures/fig_format_boxplot.pdf}
-  \caption{Best AOCC distribution by feedback format across all features. Box: IQR; line: median; whiskers: 1.5$\times$IQR. Kruskal--Wallis $p = 0.003$.}
-  \label{fig:format-boxplot}
-\end{figure}
-
-\subsection{Per-Condition Results}
+\paragraph{Per-Condition Results}
 \label{sec:results-conditions}
 
-\Cref{tab:condition-ranking} and \cref{fig:condition-ranking} rank all 29 conditions. The top four are all neutral.
+\begin{table*}[p]
+\centering
+\caption{Behavioural steering results per feature. For each format: mean best AOCC ($\pm$ std) and median behavioural feature value ($\pm$ std). The final columns show whether directional/comparative shifted the feature toward the advised direction relative to neutral.}
+\label{tab:steering-detail}
+\footnotesize
+\setlength{\tabcolsep}{3.5pt}
+\begin{tabular}{@{}lr|rr|rr|rr|cc@{}}
+\toprule
+& & \multicolumn{2}{c|}{\textbf{Neutral}} & \multicolumn{2}{c|}{\textbf{Directional}} & \multicolumn{2}{c|}{\textbf{Comparative}} & \multicolumn{2}{c}{\textbf{Steered}} \\
+\textbf{Feature} & \textbf{Adv.} & \textbf{AOCC} & \textbf{Feat.} & \textbf{AOCC} & \textbf{Feat.} & \textbf{AOCC} & \textbf{Feat.} & \textbf{D} & \textbf{C} \\
+\midrule
+avg\_impr      & $\downarrow$ & \textbf{.883$\pm$.054} & .094$\pm$.198 & .866$\pm$.060 & .105$\pm$.206 & .860$\pm$.076 & .104$\pm$.237 & $\times$ & $\times$ \\
+intens\_ratio  & $\uparrow$   & \textbf{.907$\pm$.021} & .813$\pm$.213 & .806$\pm$.044 & .783$\pm$.125 & .721$\pm$.046 & .852$\pm$.189 & $\times$ & $\checkmark$ \\
+plateau\_frac  & $\uparrow$   & \textbf{.891$\pm$.005} & .448$\pm$.210 & .874$\pm$.055 & .364$\pm$.177 & .811$\pm$.077 & .553$\pm$.210 & $\times$ & $\checkmark$ \\
+step\_autocorr & $\uparrow$   & \textbf{.810$\pm$.111} & .897$\pm$.111 & .797$\pm$.075 & .863$\pm$.123 & .761$\pm$.103 & .877$\pm$.135 & $\times$ & $\times$ \\
+impr\_spatial  & $\uparrow$   & .853$\pm$.089 & .649$\pm$.091 & \textbf{.857$\pm$.044} & .630$\pm$.107 & .786$\pm$.100 & .629$\pm$.092 & $\times$ & $\times$ \\
+half\_conv     & $\downarrow$ & .847$\pm$.069 & .003$\pm$.007 & \textbf{.862$\pm$.083} & .001$\pm$.004 & .758$\pm$.060 & .003$\pm$.022 & $\checkmark$ & $\times$ \\
+fit\_autocorr  & $\uparrow$   & \textbf{.840$\pm$.074} & .718$\pm$.092 & .814$\pm$.068 & .753$\pm$.128 & .749$\pm$.121 & .790$\pm$.140 & $\checkmark$ & $\checkmark$ \\
+x\_spread      & $\downarrow$ & .844$\pm$.067 & 1.55$\pm$.562 & .793$\pm$.108 & 0.55$\pm$.451 & \textbf{.852$\pm$.092} & 0.74$\pm$.443 & $\checkmark$ & $\checkmark$ \\
+longest\_str   & $\downarrow$ & .789$\pm$.109 & 849$\pm$1762  & \textbf{.860$\pm$.059} & 1028$\pm$2351 & \multicolumn{2}{c|}{---} & $\times$ & --- \\
+dim\_conv\_het & $\uparrow$   & \textbf{.905$\pm$.006} & .050$\pm$.052 & .788$\pm$.068 & .007$\pm$.056 & .779$\pm$.071 & .034$\pm$.168 & $\times$ & $\times$ \\
+\midrule
+\multicolumn{8}{@{}l}{Steering accuracy} & 3/10 & 4/9 \\
+\bottomrule
+\end{tabular}
+\\[0.3em]
+{\scriptsize Adv. = direction associated with higher AOCC from Spearman analysis ($\uparrow$/$\downarrow$). AOCC = mean best across 5 seeds. Feat. = median behavioural feature value across all valid candidates. $\checkmark$/$\times$ = shifted toward/away from advised direction relative to neutral.}
+\end{table*}
 
-\begin{figure*}[t]
+\begin{figure*}[p]
   \centering
   \includegraphics[width=0.85\textwidth]{figures/fig_condition_ranking.pdf}
   \caption{All 29 conditions ranked by mean best AOCC ($\pm$ std, 5 seeds). Grey bar and dashed line show the vanilla baseline ($0.862$). Colours: blue = neutral, orange = directional, green = comparative.}
   \label{fig:condition-ranking}
-\end{figure*} The second-ranked condition (\texttt{neutral-dim\_conv\_heterogeneity}, AOCC $= 0.905 \pm 0.006$) is a novel feature from this thesis (Borda rank 10), yet produces the second-best performance with the lowest variance of any condition.
-
-\begin{table*}[t]
-\centering
-\caption{All 29 conditions ranked by mean best AOCC ($\pm$ std, 5 seeds). Vanilla baseline: $0.862 \pm 0.097$. Format: N = neutral, D = directional, C = comparative.}
-\label{tab:condition-ranking}
-\footnotesize
-\begin{tabular}{@{}rlrr|rlrr|rlrr@{}}
-\toprule
-\# & \textbf{Condition} & \textbf{AOCC} & \textbf{F\%}
-& \# & \textbf{Condition} & \textbf{AOCC} & \textbf{F\%}
-& \# & \textbf{Condition} & \textbf{AOCC} & \textbf{F\%} \\
-\midrule
-1  & N-intens\_ratio  & .907$\pm$.021 & 4.2
-& 11 & N-fitness\_autocorr & .841$\pm$.074 & 3.4
-& 21 & D-x\_spread & .793$\pm$.109 & 3.2 \\
-2  & N-dim\_conv\_het  & .905$\pm$.006 & 2.2
-& 12 & D-fitness\_autocorr & .814$\pm$.068 & 1.0
-& 22 & N-longest\_streak & .789$\pm$.109 & 2.6 \\
-3  & N-plateau\_frac  & .891$\pm$.005 & 7.6
-& 13 & C-plateau\_frac & .811$\pm$.077 & 1.4
-& 23 & D-dim\_conv\_het & .788$\pm$.068 & 2.2 \\
-4  & N-avg\_improv    & .883$\pm$.055 & 2.2
-& 14 & N-step\_autocorr & .810$\pm$.111 & 1.8
-& 24 & C-impr\_spatial & .786$\pm$.100 & 1.2 \\
-5  & D-plateau\_frac  & .874$\pm$.055 & 3.0
-& 15 & D-intens\_ratio & .806$\pm$.044 & 2.0
-& 25 & C-dim\_conv\_het & .779$\pm$.072 & 2.8 \\
-6  & D-avg\_improv    & .866$\pm$.060 & 3.4
-& 16 & D-step\_autocorr & .798$\pm$.075 & 2.0
-& 26 & C-step\_autocorr & .761$\pm$.103 & 0.8 \\
-7  & D-half\_conv     & .862$\pm$.083 & 6.0
-& 17 & C-avg\_improv & .860$\pm$.076 & 2.8
-& 27 & C-half\_conv & .758$\pm$.060 & 0.6 \\
-8  & D-longest\_streak & .860$\pm$.059 & 1.8
-& 18 & C-x\_spread & .852$\pm$.092 & 1.8
-& 28 & C-fitness\_autocorr & .750$\pm$.122 & 1.6 \\
-9  & N-impr\_spatial  & .853$\pm$.089 & 1.8
-& 19 & N-half\_conv & .847$\pm$.069 & 4.4
-& 29 & C-intens\_ratio & .721$\pm$.046 & 0.6 \\
-10 & D-impr\_spatial  & .857$\pm$.044 & 1.8
-& 20 & N-x\_spread & .844$\pm$.067 & 4.4
-&    &                 &               &     \\
-\bottomrule
-\end{tabular}
-\end{table*}
-
-The strongest format effect is on \texttt{intensification\_ratio}: neutral $0.907$ vs.\ comparative $0.721$ ($p = 0.002$, Cliff's $d = 1.0$). A second significant effect appears on \texttt{dim\_conv\_heterogeneity} ($p = 0.009$), where neutral ($0.905$) dramatically outperforms directional ($0.788$) and comparative ($0.779$). \Cref{fig:convergence-by-format} shows the convergence dynamics per feature and format.
+\end{figure*}
 
 \begin{figure*}[t]
   \centering
@@ -235,95 +236,62 @@ The strongest format effect is on \texttt{intensification\_ratio}: neutral $0.90
   \label{fig:convergence-by-format}
 \end{figure*}
 
-\subsection{The Steering Paradox}
-\label{sec:results-steering}
-
-A natural hypothesis is that prescriptive feedback degrades performance because the advice is wrong. It is not. \Cref{tab:steering-accuracy} shows that for all five top features, the coded direction matches the empirical Spearman correlation.
-
-\begin{table}[t]
-\centering
-\caption{Steering accuracy for top-5 features. Shift = median change vs.\ neutral. $\checkmark$ = correct direction, $\times$ = wrong.}
-\label{tab:steering-accuracy}
-\footnotesize
-\begin{tabular}{@{}lrcc@{}}
-\toprule
-\textbf{Feature} & \textbf{Advice} & \textbf{Dir.} & \textbf{Comp.} \\
-\midrule
-avg\_improv   & Lower  & $+.012\;\times$ & $+.010\;\times$ \\
-intens\_ratio & Higher & $-.030\;\times$ & $+.038\;\checkmark$ \\
-plateau\_frac & Higher & $-.085\;\times$ & $+.105\;\checkmark$ \\
-step\_autocorr & Higher & $-.034\;\times$ & $-.020\;\times$ \\
-impr\_spatial  & Higher & $-.019\;\times$ & $-.020\;\times$ \\
-\bottomrule
-\end{tabular}
-\end{table}
-
-Directional feedback steers the wrong way for 5/5 top features. Across all 10 features, accuracy improves slightly: directional is correct for 3/10, comparative for 4/9, giving an overall accuracy of 7/19 (37\%). The advice is correct, but the LLM cannot translate it into appropriate code changes. This is the central empirical finding.
-
-\subsection{AOCC-Matched Analysis}
-\label{sec:results-aocc-matched}
-
-To isolate the behavioural effect from performance differences, we compare feature distributions \emph{within} AOCC bands (low 0.3--0.5, mid 0.5--0.7, high 0.7--0.85, elite $>$0.85).
-
-Of 19 testable feature $\times$ band combinations, \textbf{16 show significant differences} ($p < 0.05$), confirming the LLM produces behaviourally different code. But within-band steering accuracy is 9/19 (47\%) for directional and 8/19 (42\%) for comparative, both essentially random. Steering is not systematically wrong, just unreliable.
-
-\begin{figure}[t]
+\begin{figure*}[!t]
   \centering
-  \includegraphics[width=\columnwidth]{figures/fig_steering_shifts.pdf}
-  \caption{Median behavioural feature shift for directional and comparative formats relative to neutral. Green bars indicate correct steering direction, red bars indicate wrong direction.}
-  \label{fig:steering-shifts}
-\end{figure}
+  \includegraphics[width=\textwidth]{figures/fig_guided_medians.pdf}
+  \caption{Median behavioural feature value by feedback format (bars) compared against Stage~1 AOCC performance tiers (dashed lines): bottom-25\% (red), median (grey), and top-10\% (green). Reference values are computed from all Stage~1 candidates, independent of the feedback experiments.}
+  \label{fig:guided-medians}
+\end{figure*}
 
-\texttt{fitness\_plateau\_fraction} is the most steerable feature (correct across all four bands). \texttt{step\_size\_autocorrelation} is the least steerable. \texttt{intensification\_ratio} shows quality-dependent behaviour: steering helps in low/mid bands but hurts in high bands.
 
-\subsection{Neutral Feedback Produces Good Behavioural Profiles}
-\label{sec:results-neutral-profiles}
+\Cref{fig:condition-ranking} ranks all 29 conditions by mean best AOCC alongside the vanilla baseline. The top four conditions are all neutral format, and a clear pattern emerges: neutral conditions cluster at the top, directional in the middle, and comparative at the bottom. To test whether this ordering reflects a genuine difference rather than sampling noise, we apply the Kruskal--Wallis test~\cite{kruskal1952ranks}, a non-parametric alternative to one-way ANOVA that compares the rank distributions of independent groups without assuming normality. This is appropriate here because AOCC values are not normally distributed and the groups have unequal sizes (comparative has 9 features while the others have 10). The test confirms a significant difference among formats ($H = 11.5$, $p = 0.003$), with neutral achieving a mean AOCC of $0.855$, directional $0.827$, and comparative $0.784$. The AOCC columns in \cref{tab:steering-detail} show this pattern per feature, with the best format highlighted in bold. Neutral produces the best AOCC for 6 of 10 features, directional for 3, and comparative for just 1.
 
-\Cref{tab:profile-comparison} compares behavioural profiles by format against performance tiers.
+Six conditions exceed the vanilla baseline AOCC of $0.862$. Four neutral (\texttt{intensification\_ratio}, \texttt{dim\_conv\_heterogeneity}, \texttt{plateau\_fraction}, \texttt{avg\_improvement}) and two directional (\texttt{plateau\_fraction}, \texttt{avg\_improvement}), with \texttt{neutral-intensification\_ratio} at $0.907 \pm 0.021$ performing the best. None reach statistical significance with only 5 seeds. Two features show particularly strong format effects. For \texttt{intensification\_ratio}, neutral ($0.907$) outperforms directional ($0.806$) and comparative ($0.721$) with complete separation across seeds (Cliff's $d = 1.0$, Kruskal--Wallis $p = 0.002$). The same holds for \texttt{dim\_conv\_heterogeneity}, where neutral ($0.905$) outperforms directional ($0.788$) and comparative ($0.779$) with no overlap between neutral and either prescriptive format ($d = 1.0$, $p = 0.009$).
 
-\begin{table}[t]
+Some behavioural features clearly reduce performance regardless of feedback format. In particular \texttt{step\_size\_autocorrelation}, where even the best format (neutral) achieves only $0.810$. Comparative feedback leads to a reduction in performance relative to neutral for 8 of 9 features, with \texttt{x\_spread\_early} ($+0.008$) being the sole exception. Directional feedback shows more variance. For 6 features it stays within $0.02$ of neutral or beats it outright, while for other 4 it produces drops of $-0.026$ to $-0.117$.
+
+Neutral conditions also have the highest failure rate at $3.5\%$ compared to $2.6\%$ for directional and $1.5\%$ for comparative, suggesting that neutral feedback encourages the LLM to attempt more ambitious algorithm designs rather than playing it safe.
+
+\paragraph{Convergence Dynamics}
+\label{sec:results-convergence}
+
+\begin{table*}[t]
 \centering
-\caption{Feature values by AOCC tier vs.\ feedback format.}
-\label{tab:profile-comparison}
+\caption{Feature--AOCC relationship shift from Stage~1 (all models, $n{=}3{,}086$) to Stage~3 (Gemini Flash only, $n{=}14{,}127$). Tier columns show median feature values for bottom-25\% and top-10\% algorithms by AOCC in each stage.}
+\label{tab:correlation-shift}
 \footnotesize
-\setlength{\tabcolsep}{3pt}
-\begin{tabular}{@{}l|rrr|rrr@{}}
+\begin{tabular}{@{}l|rrrr|rrrr|l@{}}
 \toprule
-& \multicolumn{3}{c|}{\textbf{Tier}} & \multicolumn{3}{c}{\textbf{Format}} \\
-& \textbf{B25} & \textbf{M50} & \textbf{T25} & \textbf{N} & \textbf{D} & \textbf{C} \\
+& \multicolumn{4}{c|}{\textbf{Stage 1 (all models)}} & \multicolumn{4}{c|}{\textbf{Stage 3 (Gemini Flash)}} & \\
+\textbf{Feature} & \boldmath{$\rho$} & \textbf{Bot25} & \textbf{Top10} & \textbf{Gap} & \boldmath{$\rho$} & \textbf{Bot25} & \textbf{Top10} & \textbf{Gap} & \textbf{Dir.} \\
 \midrule
-avg\_imp    & .133 & .096 & .078 & .094 & .105 & .104 \\
-int\_ratio  & .730 & .792 & .868 & .813 & .783 & .852 \\
-plat\_frac  & .199 & .366 & .594 & .448 & .364 & .553 \\
-ss\_autocorr & .845 & .881 & .900 & .897 & .863 & .877 \\
-imp\_spat   & .622 & .630 & .683 & .649 & .630 & .629 \\
+avg\_impr       & $-$.782 & 1.752 & 0.093 & 1.659 & $-$.184 & 0.136 & 0.078 & 0.059 & same \\
+intens\_ratio   & $+$.725 & 0.000 & 0.879 & 0.879 & $+$.475 & 0.714 & 0.873 & 0.160 & same \\
+plateau\_frac   & $+$.689 & 0.000 & 0.597 & 0.597 & $+$.578 & 0.183 & 0.597 & 0.414 & same \\
+step\_autocorr  & $+$.764 & 0.130 & 0.910 & 0.780 & $+$.468 & 0.822 & 0.903 & 0.082 & same \\
+impr\_spatial   & $+$.757 & 0.087 & 0.682 & 0.595 & $+$.446 & 0.615 & 0.689 & 0.073 & same \\
+half\_conv      & $-$.611 & 0.010 & 0.001 & 0.009 & $-$.640 & 0.003 & 0.001 & 0.002 & same \\
+fit\_autocorr   & $+$.650 & 0.003 & 0.766 & 0.764 & $+$.138 & 0.720 & 0.738 & 0.018 & same \\
+x\_spread       & $-$.570 & 2.889 & 0.621 & 2.268 & $-$.410 & 1.608 & 0.578 & 1.030 & same \\
+longest\_str    & $-$.427 & 6282  & 5543  & 739   & $+$.495 & 1499  & 6018  & 4520  & \textbf{flip} \\
+dim\_conv\_het  & $+$.424 & 0.001 & 0.081 & 0.080 & $+$.167 & 0.049 & 0.089 & 0.040 & same \\
 \bottomrule
 \end{tabular}
 \\[0.3em]
-{\scriptsize B25/M50/T25 = bottom 25\%/middle 50\%/top 25\% by AOCC. N/D/C = neutral/directional/comparative.}
-\end{table}
+{\scriptsize Bot25/Top10 = median feature value among bottom-25\%/top-10\% algorithms by AOCC. Gap = $|$Top10 $-$ Bot25$|$. Dir. = whether correlation direction is preserved.}
+\end{table*}
 
-Neutral algorithms naturally sit between mid-50\% and top-25\% tiers on most features without explicit steering. Directional pulls toward or below mid-50\% on 4/5 features. Comparative is mixed: near top-25\% for \texttt{intensification\_ratio} and \texttt{fitness\_plateau\_fraction}, but worse on the other three. Neutral feedback lets evolutionary selection drive behavioural improvement, while prescriptive feedback creates a multi-objective tension that degrades performance.
+\Cref{fig:convergence-by-format} shows the best-so-far convergence curves for each feature, split by format. The two features with the strongest format effects, \texttt{intensification\_ratio} and \texttt{dim\_conv\_heterogeneity}, show a clear separation early in the run that widens throughout. The features where directional performs well (\texttt{half\_convergence\_time}, \texttt{longest\_streak}) show the formats tracking closely, consistent with the small AOCC deltas reported above. For features like \texttt{average\_improvement}, all three formats converge to similar levels with high variance, confirming that this feature does not strongly differentiate performance regardless of how feedback is framed.
 
-\subsection{Comparison to Vanilla Baseline}
-\label{sec:results-vs-vanilla}
+\paragraph{Behavioural Steering}
+\label{sec:results-steering}
 
-\begin{table}[t]
-\centering
-\caption{Top conditions vs.\ vanilla ($0.862 \pm 0.097$).}
-\label{tab:vs-vanilla}
-\footnotesize
-\begin{tabular}{@{}lrl@{}}
-\toprule
-\textbf{Condition} & \textbf{AOCC} & \boldmath{$p$} \\
-\midrule
-N-intens\_ratio    & .907 ($+$.046) & $>.09$ \\
-N-dim\_conv\_het   & .905 ($+$.043) & $>.09$ \\
-N-plateau\_frac    & .891 ($+$.030) & $>.09$ \\
-\midrule
-C-intens\_ratio    & .721 ($-$.140) & $<.05$ \\
-\bottomrule
-\end{tabular}
-\end{table}
+\Cref{tab:steering-detail} shows the median behavioural feature value produced by each format alongside the AOCC, and whether prescriptive feedback steered the feature in the advised direction relative to neutral. \Cref{fig:guided-medians} visualises these values against the Stage~1 AOCC performance tiers.
 
-No neutral condition reaches significance with 5 seeds. However, \texttt{neutral-intensification\_ratio} ($0.907 \pm 0.021$) shows a consistent $+0.046$ delta with very low variance. The worst comparative condition significantly degrades performance ($-0.140$, $p < 0.05$). Neutral behavioural feedback is at worst harmless and at best mildly beneficial, while prescriptive feedback carries substantial downside risk.
+Two features, \texttt{fitness\_autocorrelation} and \texttt{x\_spread\_early}, are steered in the correct direction by both directional and comparative feedback. For \texttt{x\_spread\_early}, directional reduces the spread from $1.55$ to $0.55$, well past the top-10\% reference. Yet this correct steering does not translate into better AOCC: directional achieves only $0.793$ compared to neutral's $0.844$. The same pattern appears for \texttt{fitness\_autocorrelation}, where both prescriptive formats increase the value (as advised) but achieve lower AOCC. Across all features, directional feedback steers correctly for 3 of 10 and comparative for 4 of 9, giving an overall accuracy of 37\%.
+
+To validate whether the directional advice itself remains correct in the Stage~3 context, we recompute Spearman correlations between each feature and AOCC on the Stage~3 dataset (\cref{tab:correlation-shift}). Since Stage~3 uses only Gemini~3 Flash, the mean AOCC is higher ($0.646$ vs $0.484$ in Stage~1) and the performance range is narrower. Despite this, 9 of 10 features maintain the same correlation direction, confirming that directional advice is empirically sound.
+
+The correlation magnitudes tell a more nuanced story. Most features weaken substantially, with \texttt{avg\_improvement} showing the most dramatic drop from $\rho = -0.782$ (the strongest correlation in Stage~1) to just $-0.184$ in Stage~3. Only one feature, \texttt{half\_convergence\_time}, strengthens its correlation in the same direction ($-0.611$ to $-0.640$). \texttt{longest\_no\_improvement\_streak} ($-0.427$ to $+0.495$), which actually increases in magnitude but reverses sign, consistent with the non-monotonic relationship that motivated its exclusion from comparative feedback.
+
+The tier values in \cref{tab:correlation-shift} also help explain why comparative feedback performs so poorly. Both the bottom-25\% and top-10\% reference values shift substantially between stages. The bottom-25\% values move most dramatically. For example, \texttt{step\_size\_autocorrelation} rises from $0.130$ to $0.822$, \texttt{fitness\_autocorrelation} from $0.003$ to $0.720$, and \texttt{intensification\_ratio} from $0.000$ to $0.714$. The top-10\% values are more stable but still shift for several features, such as \texttt{avg\_improvement} dropping from $0.093$ to $0.078$ and \texttt{x\_spread\_early} from $0.621$ to $0.578$. The gap between the tiers, which determines the normalisation scale for comparative feedback, collapses by an order of magnitude for features like \texttt{fitness\_autocorrelation} (from $0.764$ to $0.018$), \texttt{step\_size\_autocorrelation} ($0.780$ to $0.082$), and \texttt{avg\_improvement} ($1.659$ to $0.059$).

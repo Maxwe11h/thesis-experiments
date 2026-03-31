@@ -17,18 +17,18 @@ Large Language Models (LLMs) have introduced a fundamentally new paradigm for al
 \section{The Feedback Gap}
 \label{sec:intro-gap}
 
-In the standard LLaMEA loop the sole feedback signal to the LLM is the Area Over the Convergence Curve (AOCC)~\cite{vanStein2025BLADE}, a scalar performance score. While AOCC captures anytime performance, it compresses the entire optimisation trajectory, spanning thousands of evaluations across multiple problem instances, into a single number. Two algorithms with identical AOCC scores may exhibit fundamentally different search behaviours. One might converge quickly through aggressive exploitation, while another might explore broadly before settling on a good solution.
+In the standard LLaMEA loop the sole feedback signal to the LLM is the Area Over the Convergence Curve (AOCC)~\cite{vanStein2024LLaMEA}, a scalar performance score. While AOCC captures anytime performance, it compresses the entire optimisation trajectory, spanning thousands of evaluations across multiple problem instances, into a single number. Two algorithms with identical AOCC scores may exhibit fundamentally different search behaviours. One might converge quickly through aggressive exploitation, while another might explore broadly before settling on a good solution.
 
-The BLADE benchmarking suite ~\cite{vanStein2025BLADE} captures algorithmic behaviour by storing the algorithm's execution trajectory. Behavioural features extracted from these trajectories can quantify exploration breadth, exploitation intensity, convergence speed, step-size dynamics, and stagnation patterns~\cite{vanStein2025Behaviour}. Prior work has shown that these features explain why certain LLM-generated algorithms outperform others~\cite{vanStein2025Behaviour}, and that \emph{structural} code features can successfully guide the algorithm design process when fed back as natural-language instructions~\cite{vanStein2026LLaMEASAGE}.
+The BLADE benchmarking suite ~\cite{vanStein2025BLADE} captures algorithmic behaviour by storing the algorithm's execution trajectory. Behavioural features extracted from these trajectories can quantify exploration breadth, exploitation intensity, convergence speed, step-size dynamics, and stagnation patterns. Prior work has shown that these features explain why certain LLM-generated algorithms outperform others ~\cite{vanStein2025Behaviour}, and that \emph{structural} code features can successfully guide the algorithm design process when fed back as natural-language instructions~\cite{vanStein2026LLaMEASAGE}.
 
-The question this thesis addresses is whether behavioural features, which describe what the algorithm \emph{does} rather than what it \emph{is}, can play a similar guiding role. And critically, whether the \emph{framing} of that feedback matters; does the LLM benefit from explicit guidance about which behavioural direction is desirable, or does simply reporting the observation suffice?
+The question this thesis addresses is whether behavioural features, which describe what the algorithm \emph{does} rather than what it \emph{is}, can play a similar guiding role. And critically, whether the \emph{framing} of that feedback matters. Does the LLM benefit from explicit guidance about which behavioural direction is desirable, or does simply reporting the observation suffice?
 
 % ---------------------------------------------------------------------------
 \section{Research Question}
 \label{sec:intro-rq}
 
 \begin{quote}
-\textit{Does incorporating trajectory-derived behavioural features into the evolutionary feedback loop of LLM-driven optimisation algorithm design improve the performance and generalisation of discovered metaheuristics compared to fitness-only feedback, and does the framing of that feedback (neutral, directional, or comparative) affect the outcome?}
+\textit{Does incorporating trajectory-based behavioural features into the evolutionary feedback loop of LLM-driven optimisation algorithm design improve the performance and generalisation of discovered metaheuristics compared to fitness-only feedback, and does the framing of that feedback (neutral, directional, or comparative) affect the outcome?}
 \end{quote}
 
 % ---------------------------------------------------------------------------

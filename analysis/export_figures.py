@@ -35,6 +35,8 @@ import matplotlib.patches as mpatches
 import numpy as np
 import pandas as pd
 from scipy import stats
+from sklearn.manifold import TSNE
+from sklearn.preprocessing import StandardScaler
 
 warnings.filterwarnings("ignore")
 
@@ -301,11 +303,12 @@ def load_phase3():
 
 
 # ===================================================================
-# Figure 1: Model Ranking Bar Chart (Phase 1)
+# Figure 1: Model Screening (ranking + convergence, combined)
 # ===================================================================
 
-def fig_model_ranking(df):
-    """Horizontal bar chart of mean best AOCC by model."""
+def fig_model_screening(df):
+    """Combined figure: (a) bar chart of best AOCC, (b) convergence curves."""
+    # --- Compute ranking data ---
     best_per_seed = df.groupby(["model", "seed"])["fitness"].max().reset_index()
     best_per_seed.columns = ["model", "seed", "best_aocc"]
     best_per_seed["best_aocc"] = best_per_seed["best_aocc"].replace(-np.inf, np.nan)
@@ -314,33 +317,7 @@ def fig_model_ranking(df):
     summary.columns = ["model", "aocc_mean", "aocc_std"]
     summary = summary.sort_values("aocc_mean", ascending=False).reset_index(drop=True)
 
-    fig, ax = plt.subplots(figsize=(10, 6))
-    models_sorted = summary["model"].tolist()
-    y_pos = np.arange(len(models_sorted))
-    colors = [MODEL_COLORS[m] for m in models_sorted]
-    ax.barh(y_pos, summary["aocc_mean"], xerr=summary["aocc_std"],
-            color=colors, edgecolor="none", capsize=3)
-    ax.set_yticks(y_pos)
-    ax.set_yticklabels(models_sorted)
-    ax.set_xlabel("Mean Best AOCC")
-    ax.set_title("Model Ranking by Best AOCC (mean +/- std across 5 seeds)",
-                 fontweight="bold")
-    ax.invert_yaxis()
-
-    outpath = FIGURES_DIR / "fig_model_ranking.pdf"
-    fig.savefig(outpath, **SAVEFIG_KW)
-    plt.close(fig)
-    print(f"  Saved {outpath.name}")
-    return summary
-
-
-# ===================================================================
-# Figure 2: Convergence Curves (Phase 1)
-# ===================================================================
-
-def fig_model_convergence(df):
-    """Best-so-far AOCC convergence curves for all models."""
-
+    # --- Compute convergence data ---
     def compute_best_so_far(model_tag):
         curves = []
         for seed in range(N_SEEDS):
@@ -357,7 +334,24 @@ def fig_model_convergence(df):
             padded.append(c)
         return np.array(padded)
 
-    fig, ax = plt.subplots(figsize=(12, 7))
+    # --- Combined figure ---
+    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(20, 7),
+                                    gridspec_kw={"width_ratios": [1, 1.3]})
+
+    # Panel (a): Model ranking bar chart
+    models_sorted = summary["model"].tolist()
+    y_pos = np.arange(len(models_sorted))
+    colors = [MODEL_COLORS[m] for m in models_sorted]
+    ax1.barh(y_pos, summary["aocc_mean"], xerr=summary["aocc_std"],
+             color=colors, edgecolor="none", capsize=3)
+    ax1.set_yticks(y_pos)
+    ax1.set_yticklabels(models_sorted)
+    ax1.set_xlabel("Mean Best AOCC")
+    ax1.set_title("(a) Model Ranking (mean ± std across 5 seeds)",
+                  fontweight="bold")
+    ax1.invert_yaxis()
+
+    # Panel (b): Convergence curves
     for model_tag in MODELS:
         curves = compute_best_so_far(model_tag)
         if curves.size == 0:
@@ -366,17 +360,267 @@ def fig_model_convergence(df):
         std_curve = np.nanstd(curves, axis=0)
         x = np.arange(1, len(mean_curve) + 1)
         color = MODEL_COLORS[model_tag]
-        ax.plot(x, mean_curve, label=model_tag, color=color, linewidth=1.5)
-        ax.fill_between(x, mean_curve - std_curve, mean_curve + std_curve,
-                        alpha=0.15, color=color)
-    ax.set_xlabel("Evaluation")
-    ax.set_ylabel("Best-so-far AOCC")
-    ax.set_title("Convergence Curves (mean +/- 1 std across 5 seeds)",
-                 fontweight="bold")
-    ax.legend(bbox_to_anchor=(1.01, 1), loc="upper left", fontsize=FONT_SIZE_LEGEND,
-              borderaxespad=0, frameon=True)
+        ax2.plot(x, mean_curve, label=model_tag, color=color, linewidth=1.5)
+        ax2.fill_between(x, mean_curve - std_curve, mean_curve + std_curve,
+                         alpha=0.15, color=color)
+    ax2.set_xlabel("Evaluation")
+    ax2.set_ylabel("Best-so-far AOCC")
+    ax2.set_title("(b) Convergence (mean ± 1 std across 5 seeds)",
+                  fontweight="bold")
+    ax2.legend(bbox_to_anchor=(1.01, 1), loc="upper left", fontsize=FONT_SIZE_LEGEND,
+               borderaxespad=0, frameon=True)
 
-    outpath = FIGURES_DIR / "fig_model_convergence.pdf"
+    fig.tight_layout()
+    outpath = FIGURES_DIR / "fig_model_screening.pdf"
+    fig.savefig(outpath, **SAVEFIG_KW)
+    plt.close(fig)
+    print(f"  Saved {outpath.name}")
+    return summary
+
+
+# ===================================================================
+# Figure 2: t-SNE of Behavioral Space (Phase 1)
+# ===================================================================
+
+def fig_tsne_behavioral(df):
+    """Two-panel t-SNE: (a) colored by model, (b) colored by AOCC."""
+    df_valid = df[~df["failed"]].copy()
+    bm_cols = [c for c in df_valid.columns if c.startswith("bm_")]
+    for col in bm_cols:
+        df_valid[col] = pd.to_numeric(df_valid[col], errors="coerce")
+
+    # Drop metrics with >50% NaN, then drop rows with any remaining NaN
+    nan_frac = df_valid[bm_cols].isna().mean()
+    bm_cols = nan_frac[nan_frac <= 0.5].index.tolist()
+    proj_data = df_valid[bm_cols + ["fitness", "model"]].dropna(subset=bm_cols)
+
+    X = proj_data[bm_cols].values
+    scaler = StandardScaler()
+    X_scaled = scaler.fit_transform(X)
+
+    n_samples = X_scaled.shape[0]
+    perp = min(30, n_samples - 1)
+    tsne = TSNE(n_components=2, perplexity=perp, random_state=42, init="pca")
+    X_tsne = tsne.fit_transform(X_scaled)
+
+    model_list = proj_data["model"].values
+    fitness_vals = proj_data["fitness"].values
+
+    # Sort models by mean AOCC for legend ordering
+    model_means = proj_data.groupby("model")["fitness"].mean().sort_values(ascending=False)
+    models_sorted = model_means.index.tolist()
+
+    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(20, 8))
+
+    # Panel (a): colored by model
+    for model in models_sorted:
+        mask = model_list == model
+        ax1.scatter(X_tsne[mask, 0], X_tsne[mask, 1],
+                    c=MODEL_COLORS[model], label=model,
+                    s=30, alpha=0.6, edgecolors="w", linewidths=0.2)
+    ax1.set_xlabel("t-SNE 1")
+    ax1.set_ylabel("t-SNE 2")
+    ax1.set_title("(a) Colored by model", fontweight="bold")
+    ax1.legend(fontsize=FONT_SIZE_LEGEND, loc="best", ncol=2,
+               markerscale=1.5, framealpha=0.9)
+
+    # Panel (b): colored by AOCC
+    order = np.argsort(fitness_vals)  # plot low AOCC first so high on top
+    sc = ax2.scatter(X_tsne[order, 0], X_tsne[order, 1],
+                     c=fitness_vals[order], cmap="viridis",
+                     s=30, alpha=0.6, edgecolors="w", linewidths=0.2,
+                     vmin=0, vmax=1)
+    plt.colorbar(sc, ax=ax2, label="AOCC", shrink=0.8)
+    ax2.set_xlabel("t-SNE 1")
+    ax2.set_ylabel("t-SNE 2")
+    ax2.set_title("(b) Colored by AOCC", fontweight="bold")
+
+    fig.tight_layout()
+    outpath = FIGURES_DIR / "fig_tsne_behavioral.pdf"
+    fig.savefig(outpath, **SAVEFIG_KW)
+    plt.close(fig)
+    print(f"  Saved {outpath.name}")
+
+
+# ===================================================================
+# Figures 2b-d: Feature ranking (3 separate figures, each self-sorted)
+# ===================================================================
+
+_FEAT_CATEGORIES = {
+    "Exploration & Diversity": [
+        "avg_nearest_neighbor_distance", "dispersion", "avg_exploration_pct"],
+    "Exploitation": [
+        "avg_distance_to_best", "intensification_ratio", "avg_exploitation_pct"],
+    "Convergence": [
+        "average_convergence_rate", "avg_improvement", "success_rate"],
+    "Stagnation": [
+        "longest_no_improvement_streak", "last_improvement_fraction"],
+    "Step-Size & Movement": [
+        "step_size_mean", "step_size_std", "step_size_trend", "directional_persistence"],
+    "Information-Theoretic": [
+        "fitness_sample_entropy", "fitness_permutation_entropy",
+        "fitness_autocorrelation", "fitness_lempel_ziv_complexity"],
+    "Early/Late Dynamics": [
+        "x_spread_early", "x_spread_late", "spread_ratio", "centroid_drift",
+        "f_range_early", "f_range_late", "f_range_ratio"],
+    "Novel Features": [
+        "improvement_spatial_correlation", "improvement_burstiness",
+        "dimension_convergence_heterogeneity", "step_size_autocorrelation",
+        "fitness_plateau_fraction", "half_convergence_time"],
+}
+_CAT_COLORS = {
+    "Exploration & Diversity": "#4e79a7", "Exploitation": "#f28e2b",
+    "Convergence": "#59a14f", "Stagnation": "#e15759",
+    "Step-Size & Movement": "#b07aa1", "Information-Theoretic": "#9c755f",
+    "Early/Late Dynamics": "#ff9da7", "Novel Features": "#76b7b2",
+}
+_FEAT_TO_CAT = {}
+for _cat, _feats in _FEAT_CATEGORIES.items():
+    for _f in _feats:
+        _FEAT_TO_CAT[f"bm_{_f}"] = _cat
+
+# Shared figsize so all three render at the same width in LaTeX
+_FIG_W, _FIG_H = 14, 10
+
+
+def _cat_color(feat):
+    return _CAT_COLORS.get(_FEAT_TO_CAT.get(feat, ""), "#bab0ac")
+
+
+def _cat_legend(ax):
+    elems = [mpatches.Patch(facecolor=c, edgecolor="none", label=cat)
+             for cat, c in _CAT_COLORS.items()]
+    ax.legend(handles=elems, loc="lower right", fontsize=FONT_SIZE_LEGEND)
+
+
+def fig_spearman(df):
+    """Spearman rho with AOCC, sorted by |rho|."""
+    df_valid = df[~df["failed"]].copy()
+    bm_cols = [c for c in df_valid.columns if c.startswith("bm_")]
+    for col in bm_cols:
+        df_valid[col] = pd.to_numeric(df_valid[col], errors="coerce")
+    nan_frac = df_valid[bm_cols].isna().mean()
+    bm_cols = nan_frac[nan_frac <= 0.5].index.tolist()
+    corr_data = df_valid[bm_cols + ["fitness"]].dropna()
+
+    rows = []
+    for col in bm_cols:
+        valid = corr_data[[col, "fitness"]].dropna()
+        if len(valid) > 3:
+            r, p = stats.spearmanr(valid[col], valid["fitness"])
+            rows.append({"feature": col, "rho": r, "abs_rho": abs(r),
+                         "p_bonf": min(p * len(bm_cols), 1.0)})
+    rho_df = pd.DataFrame(rows).sort_values("abs_rho", ascending=False)
+    rho_df["sig"] = rho_df["p_bonf"].apply(
+        lambda p: "***" if p < 0.001 else ("**" if p < 0.01 else ("*" if p < 0.05 else "")))
+
+    fig, ax = plt.subplots(figsize=(_FIG_W, _FIG_H))
+    colors = [_cat_color(f) for f in rho_df["feature"]]
+    ax.barh(range(len(rho_df)), rho_df["rho"].values, color=colors, edgecolor="none")
+    for i, (_, row) in enumerate(rho_df.iterrows()):
+        offset = 0.01 if row["rho"] >= 0 else -0.01
+        ha = "left" if row["rho"] >= 0 else "right"
+        ax.text(row["rho"] + offset, i, row["sig"], va="center", ha=ha,
+                fontsize=FONT_SIZE_LEGEND)
+    ax.axvline(0, color="k", lw=0.5)
+    ax.set_yticks(range(len(rho_df)))
+    ax.set_yticklabels([f.replace("bm_", "") for f in rho_df["feature"]],
+                       fontsize=FONT_SIZE_TICK)
+    ax.set_xlabel("Spearman $\\rho$ with AOCC")
+    ax.set_title("Spearman Correlation with AOCC (Bonferroni-corrected)",
+                 fontweight="bold")
+    ax.invert_yaxis()
+    _cat_legend(ax)
+    outpath = FIGURES_DIR / "fig_spearman.pdf"
+    fig.savefig(outpath, **SAVEFIG_KW)
+    plt.close(fig)
+    print(f"  Saved {outpath.name}")
+
+
+def fig_rf_importance(df):
+    """RF permutation importance, sorted by importance."""
+    from sklearn.ensemble import RandomForestRegressor
+    from sklearn.inspection import permutation_importance
+
+    df_valid = df[~df["failed"]].copy()
+    bm_cols = [c for c in df_valid.columns if c.startswith("bm_")]
+    for col in bm_cols:
+        df_valid[col] = pd.to_numeric(df_valid[col], errors="coerce")
+    nan_frac = df_valid[bm_cols].isna().mean()
+    bm_cols = nan_frac[nan_frac <= 0.5].index.tolist()
+    rf_data = df_valid[bm_cols + ["fitness"]].dropna()
+    X = rf_data[bm_cols].values
+    y = rf_data["fitness"].values
+
+    rf = RandomForestRegressor(n_estimators=200, random_state=42, oob_score=True, n_jobs=-1)
+    rf.fit(X, y)
+    perm_imp = permutation_importance(rf, X, y, n_repeats=10, random_state=42, n_jobs=-1)
+    perm_df = pd.DataFrame({
+        "feature": bm_cols, "importance": perm_imp.importances_mean,
+        "std": perm_imp.importances_std,
+    }).sort_values("importance", ascending=False)
+
+    fig, ax = plt.subplots(figsize=(_FIG_W, _FIG_H))
+    colors = [_cat_color(f) for f in perm_df["feature"]]
+    ax.barh(range(len(perm_df)), perm_df["importance"].values,
+            xerr=perm_df["std"].values, color=colors, edgecolor="none", capsize=3)
+    ax.set_yticks(range(len(perm_df)))
+    ax.set_yticklabels([f.replace("bm_", "") for f in perm_df["feature"]],
+                       fontsize=FONT_SIZE_TICK)
+    ax.set_xlabel("Permutation Importance")
+    ax.set_title("RF Permutation Importance (OOB $R^2$ = {:.3f})".format(rf.oob_score_),
+                 fontweight="bold")
+    ax.invert_yaxis()
+    _cat_legend(ax)
+    outpath = FIGURES_DIR / "fig_rf_importance.pdf"
+    fig.savefig(outpath, **SAVEFIG_KW)
+    plt.close(fig)
+    print(f"  Saved {outpath.name}")
+
+
+def fig_ks_effect(df):
+    """KS statistic (top 25% vs bottom 25%), sorted by KS, winsorized."""
+    df_valid = df[~df["failed"]].copy()
+    bm_cols = [c for c in df_valid.columns if c.startswith("bm_")]
+    for col in bm_cols:
+        df_valid[col] = pd.to_numeric(df_valid[col], errors="coerce")
+    nan_frac = df_valid[bm_cols].isna().mean()
+    bm_cols = nan_frac[nan_frac <= 0.5].index.tolist()
+
+    # Winsorize at 1st/99th percentile (matches notebook methodology)
+    df_ks = df_valid.copy()
+    for col in bm_cols:
+        vals = df_ks[col].dropna()
+        if len(vals) > 10:
+            lo, hi = vals.quantile(0.01), vals.quantile(0.99)
+            df_ks[col] = df_ks[col].clip(lower=lo, upper=hi)
+
+    q75 = df_valid["fitness"].quantile(0.75)
+    q25 = df_valid["fitness"].quantile(0.25)
+    top25 = df_ks[df_ks["fitness"] >= q75]
+    bot25 = df_ks[df_ks["fitness"] <= q25]
+
+    ks_list = []
+    for col in bm_cols:
+        t = top25[col].dropna()
+        b = bot25[col].dropna()
+        if len(t) > 3 and len(b) > 3:
+            ks_stat, _ = stats.ks_2samp(t, b)
+            ks_list.append({"feature": col, "ks_stat": ks_stat})
+    ks_df = pd.DataFrame(ks_list).sort_values("ks_stat", ascending=False)
+
+    fig, ax = plt.subplots(figsize=(_FIG_W, _FIG_H))
+    colors = [_cat_color(f) for f in ks_df["feature"]]
+    ax.barh(range(len(ks_df)), ks_df["ks_stat"].values, color=colors, edgecolor="none")
+    ax.set_yticks(range(len(ks_df)))
+    ax.set_yticklabels([f.replace("bm_", "") for f in ks_df["feature"]],
+                       fontsize=FONT_SIZE_TICK)
+    ax.set_xlabel("KS Statistic")
+    ax.set_title("KS Distributional Effect (top 25% vs bottom 25%, winsorized)",
+                 fontweight="bold")
+    ax.invert_yaxis()
+    _cat_legend(ax)
+    outpath = FIGURES_DIR / "fig_ks_effect.pdf"
     fig.savefig(outpath, **SAVEFIG_KW)
     plt.close(fig)
     print(f"  Saved {outpath.name}")
@@ -709,6 +953,107 @@ def fig_convergence_by_format(df3):
 
 
 # ===================================================================
+# Figure 7b: Guided Feature Medians vs AOCC Tiers (Phase 3)
+# ===================================================================
+
+def fig_guided_medians(df3, df1):
+    """2x5 grid: per-feature bar chart of median behavioral value by format,
+    with AOCC tier reference lines from Stage 1 data (bottom-25%, median, top-10%)."""
+    bf_df = df3[~df3["failed"]].copy()
+    bf_cols = [c for c in bf_df.columns if c.startswith("bf_")]
+    bf_df = bf_df.dropna(subset=["fitness"]).reset_index(drop=True)
+    if bf_df.empty:
+        print("  WARNING: No behavioral feature data -- skipping fig_guided_medians")
+        return
+
+    # Compute tier thresholds from Stage 1 data
+    df1_valid = df1[~df1["failed"]].copy()
+    for col in df1_valid.columns:
+        if col.startswith("bm_"):
+            df1_valid[col] = pd.to_numeric(df1_valid[col], errors="coerce")
+    s1_fitness = df1_valid["fitness"].dropna()
+    p25 = s1_fitness.quantile(0.25)
+    p50 = s1_fitness.quantile(0.50)
+    p90 = s1_fitness.quantile(0.90)
+
+    tiers = {
+        "bottom 25%": df1_valid[df1_valid["fitness"] < p25],
+        "median":     df1_valid[(df1_valid["fitness"] >= p25) & (df1_valid["fitness"] < p90)],
+        "top 10%":    df1_valid[df1_valid["fitness"] >= p90],
+    }
+    tier_colors = {"bottom 25%": "#d62728", "median": "#7f7f7f", "top 10%": "#2ca02c"}
+    tier_styles = {"bottom 25%": "--", "median": ":", "top 10%": "--"}
+
+    fig, axes = plt.subplots(2, 5, figsize=(22, 10), sharey=False)
+    axes_flat = axes.flatten()
+
+    for idx, feat in enumerate(FEATURES):
+        ax = axes_flat[idx]
+        # Phase 3 uses bf_ prefix, Phase 1 uses bm_ prefix
+        bf_col = f"bf_{feat}"
+        bm_col = f"bm_{feat}"
+        if bf_col not in bf_df.columns:
+            ax.set_visible(False)
+            continue
+
+        fmts = formats_for_feature(feat)
+        fmt_medians = []
+        fmt_stds = []
+        for fmt in fmts:
+            sub = bf_df[(bf_df["feature"] == feat) & (bf_df["format"] == fmt)][bf_col].dropna()
+            fmt_medians.append(sub.median())
+            fmt_stds.append(sub.std())
+
+        x_pos = np.arange(len(fmts))
+        ax.bar(x_pos, fmt_medians, yerr=fmt_stds,
+               color=[FORMAT_COLORS[f] for f in fmts],
+               edgecolor="black", linewidth=0.5, width=0.6, zorder=3,
+               capsize=4, error_kw={"linewidth": 1.2})
+
+        for tier_name, tier_df in tiers.items():
+            if bm_col not in tier_df.columns:
+                continue
+            tier_med = tier_df[bm_col].dropna().median()
+            if pd.isna(tier_med):
+                continue
+            ax.axhline(y=tier_med, color=tier_colors[tier_name],
+                       linestyle=tier_styles[tier_name], linewidth=2, alpha=0.8,
+                       zorder=2)
+
+        ax.set_xticks(x_pos)
+        ax.set_xticklabels([f[:4] for f in fmts], fontsize=9)
+        ax.set_title(FEATURE_SHORT[feat], fontsize=FONT_SIZE_TICK, fontweight="bold")
+        if idx % 5 == 0:
+            ax.set_ylabel("Median Feature Value")
+
+    # Build combined legend: bar colors for formats + line styles for tiers
+    import matplotlib.lines as _mlines
+    legend_elements = [
+        mpatches.Patch(facecolor=FORMAT_COLORS["neutral"], edgecolor="black",
+                       linewidth=0.5, label="Neutral"),
+        mpatches.Patch(facecolor=FORMAT_COLORS["directional"], edgecolor="black",
+                       linewidth=0.5, label="Directional"),
+        mpatches.Patch(facecolor=FORMAT_COLORS["comparative"], edgecolor="black",
+                       linewidth=0.5, label="Comparative"),
+        _mlines.Line2D([], [], color=tier_colors["bottom 25%"],
+                       linestyle=tier_styles["bottom 25%"], linewidth=2, label="Bottom 25% (Stage 1)"),
+        _mlines.Line2D([], [], color=tier_colors["median"],
+                       linestyle=tier_styles["median"], linewidth=2, label="Median (Stage 1)"),
+        _mlines.Line2D([], [], color=tier_colors["top 10%"],
+                       linestyle=tier_styles["top 10%"], linewidth=2, label="Top 10% (Stage 1)"),
+    ]
+    plt.tight_layout()
+    fig.legend(handles=legend_elements, loc="upper center", ncol=6, fontsize=9,
+               bbox_to_anchor=(0.5, 0.97), frameon=True)
+    plt.subplots_adjust(top=0.90)
+
+    outpath = FIGURES_DIR / "fig_guided_medians.pdf"
+    fig.savefig(outpath, **SAVEFIG_KW)
+    plt.close(fig)
+    print(f"  Saved {outpath.name}")
+
+
+# ===================================================================
 # Figure 8: Steering Shifts (Phase 3)
 # ===================================================================
 
@@ -978,18 +1323,27 @@ def main():
         df1 = load_phase1()
         print(f"  Loaded {len(df1)} evaluations across {df1['model'].nunique()} models")
 
-        print("\n[Phase 1] fig_model_ranking.pdf")
-        summary = fig_model_ranking(df1)
+        print("\n[Phase 1] fig_model_screening.pdf")
+        summary = fig_model_screening(df1)
 
-        print("[Phase 1] fig_model_convergence.pdf")
-        fig_model_convergence(df1)
+        print("[Phase 1] fig_tsne_behavioral.pdf")
+        fig_tsne_behavioral(df1)
+
+        print("[Phase 1] fig_spearman.pdf")
+        fig_spearman(df1)
+
+        print("[Phase 1] fig_rf_importance.pdf")
+        fig_rf_importance(df1)
+
+        print("[Phase 1] fig_ks_effect.pdf")
+        fig_ks_effect(df1)
 
         print("[Phase 1] fig_failure_modes.pdf")
         fig_failure_modes(df1, summary)
 
-        print("[Phase 1] fig_spearman_heatmap.pdf")
-        fig_spearman_heatmap(df1)
+        # spearman_heatmap superseded by fig_spearman above
     else:
+        df1 = None
         print(f"  WARNING: {RESULTS_PHASE1} not found -- skipping Phase 1 figures")
 
     # --- Phase 3 figures ---
@@ -1006,6 +1360,9 @@ def main():
 
         print("[Phase 3] fig_convergence_by_format.pdf")
         fig_convergence_by_format(df3)
+
+        print("[Phase 3] fig_guided_medians.pdf")
+        fig_guided_medians(df3, df1)
 
         print("[Phase 3] fig_steering_shifts.pdf")
         fig_steering_shifts(df3)
