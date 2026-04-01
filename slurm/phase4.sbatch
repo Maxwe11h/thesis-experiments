@@ -2,8 +2,8 @@
 #SBATCH --partition=L40s_students
 #SBATCH --gres=gpu:1
 #SBATCH --time=5-00:00:00
-#SBATCH --cpus-per-task=16
-#SBATCH --mem=32G
+#SBATCH --cpus-per-task=48
+#SBATCH --mem=64G
 #SBATCH --job-name=p4
 #SBATCH --output=logs/slurm/phase4-%j.out
 #SBATCH --error=logs/slurm/phase4-%j.err

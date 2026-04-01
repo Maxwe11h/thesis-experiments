@@ -20,12 +20,14 @@ from .phase1_config import (
     BUDGET_FACTOR,
     BBOB_BOUNDS,
     ALLOWED_IMPORTS,
-    EVAL_TIMEOUT,
     N_PARENTS,
     N_OFFSPRING,
     ELITISM,
     MUTATION_PROMPTS,
 )
+
+# Override Phase 1 timeout: 20 instances (2x Phase 1) + CPU contention headroom
+EVAL_TIMEOUT = 1200
 
 # ---------------------------------------------------------------------------
 # Model — gemini-3-flash (best from Phase 1)
