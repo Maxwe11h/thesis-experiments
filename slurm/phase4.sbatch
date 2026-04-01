@@ -42,14 +42,15 @@ echo "Python: $(python --version)"
 cd "$REPO_DIR"
 mkdir -p logs/slurm
 
-# Load API key
+# Load env (Vertex AI project config)
 if [ -f .env ]; then
     set -a && source .env && set +a
 fi
-if [ -z "${GOOGLE_API_KEY:-}" ]; then
-    echo "ERROR: GOOGLE_API_KEY not set. Add to ~/thesis/.env" >&2
+if [ -z "${VERTEXAI_PROJECT:-}" ]; then
+    echo "ERROR: VERTEXAI_PROJECT not set. Add to ~/thesis/.env" >&2
     exit 1
 fi
+echo "Vertex AI: project=$VERTEXAI_PROJECT location=${VERTEXAI_LOCATION:-global}"
 
 # --- Check if a seed-run is already complete ---
 is_complete() {

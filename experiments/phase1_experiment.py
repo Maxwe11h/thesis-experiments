@@ -188,10 +188,18 @@ def make_llm(model_cfg, port=None, base_url=None):
         return VLLM_LLM(model=model, base_url=base_url or VLLM_BASE_URL)
 
     if mtype == "gemini":
+        # Prefer Vertex AI if configured (covered by GCP free-trial credits)
+        vertexai_project = os.environ.get("VERTEXAI_PROJECT")
+        vertexai_location = os.environ.get("VERTEXAI_LOCATION", "global")
+        if vertexai_project:
+            return Gemini_LLM(
+                api_key="", model=model,
+                vertexai=True, project=vertexai_project, location=vertexai_location,
+            )
         api_key = os.environ.get("GOOGLE_API_KEY") or os.environ.get("GEMINI_API_KEY")
         if not api_key:
             raise RuntimeError(
-                "Gemini models require GOOGLE_API_KEY or GEMINI_API_KEY env var."
+                "Gemini models require VERTEXAI_PROJECT or GOOGLE_API_KEY env var."
             )
         return Gemini_LLM(api_key=api_key, model=model)
 
