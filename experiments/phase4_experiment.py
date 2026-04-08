@@ -16,7 +16,11 @@ import sys
 import time
 from pathlib import Path
 
-from .feedback import make_multi_feature_neutral_feedback, vanilla_feedback
+from .feedback import (
+    make_multi_feature_directional_feedback,
+    make_multi_feature_neutral_feedback,
+    vanilla_feedback,
+)
 from .initial_population import get_initial_solutions
 from .mabbob_problem import MaBBOBProblem
 from .phase1_experiment import (
@@ -31,6 +35,7 @@ from .phase4_config import (
     BUDGET_FACTOR,
     CONDITIONS,
     DIMS,
+    DIRECTIONAL_FEATURES,
     ELITISM,
     EVAL_SEEDS,
     EVAL_TIMEOUT,
@@ -57,8 +62,10 @@ from iohblade.loggers import ExperimentLogger
 def make_feedback_fn(condition_tag):
     """Return the feedback function for a given condition tag."""
     spec = CONDITIONS[condition_tag]
-    if spec["feedback"] == "behavioural":
+    if spec["feedback"] == "neutral":
         return make_multi_feature_neutral_feedback(NEUTRAL_FEATURES)
+    if spec["feedback"] == "directional":
+        return make_multi_feature_directional_feedback(DIRECTIONAL_FEATURES)
     return vanilla_feedback
 
 

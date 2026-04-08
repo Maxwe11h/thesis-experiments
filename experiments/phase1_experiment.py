@@ -192,16 +192,22 @@ def make_llm(model_cfg, port=None, base_url=None):
         vertexai_project = os.environ.get("VERTEXAI_PROJECT")
         vertexai_location = os.environ.get("VERTEXAI_LOCATION", "global")
         if vertexai_project:
-            return Gemini_LLM(
+            llm = Gemini_LLM(
                 api_key="", model=model,
                 vertexai=True, project=vertexai_project, location=vertexai_location,
             )
-        api_key = os.environ.get("GOOGLE_API_KEY") or os.environ.get("GEMINI_API_KEY")
-        if not api_key:
-            raise RuntimeError(
-                "Gemini models require VERTEXAI_PROJECT or GOOGLE_API_KEY env var."
-            )
-        return Gemini_LLM(api_key=api_key, model=model)
+        else:
+            api_key = os.environ.get("GOOGLE_API_KEY") or os.environ.get("GEMINI_API_KEY")
+            if not api_key:
+                raise RuntimeError(
+                    "Gemini models require VERTEXAI_PROJECT or GOOGLE_API_KEY env var."
+                )
+            llm = Gemini_LLM(api_key=api_key, model=model)
+        # Inject any extra generation config (e.g. thinking_config)
+        extra_config = model_cfg.get("generation_config")
+        if extra_config:
+            llm.generation_config.update(extra_config)
+        return llm
 
     raise ValueError(f"Unknown model type: {mtype!r}")
 

@@ -165,6 +165,27 @@ def make_multi_feature_neutral_feedback(feature_names):
     return feedback_fn
 
 
+def make_multi_feature_directional_feedback(feature_names):
+    """Factory: returns a feedback function that reports AOCC + multiple behavioral metrics with directional guidance."""
+    descriptions = {name: FEATURE_DESCRIPTIONS[name] for name in feature_names}
+    directions = {name: FEATURE_DIRECTIONS[name] for name in feature_names}
+
+    def feedback_fn(name, auc_mean, auc_std, metrics, metrics_std=None):
+        base = vanilla_feedback(name, auc_mean, auc_std, metrics)
+        parts = [base]
+        for feat in feature_names:
+            value = metrics.get(feat)
+            if value is None:
+                continue
+            std = metrics_std.get(feat) if metrics_std else None
+            _direction, guidance = directions[feat]
+            sentence = _metric_sentence(feat, value, std, descriptions[feat])
+            parts.append(f"{sentence} {guidance}")
+        return " ".join(parts)
+
+    return feedback_fn
+
+
 def make_comparative_feature_feedback(feature_name):
     """Factory: AOCC + one behavioral metric compared against top-performing reference.
 

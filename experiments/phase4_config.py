@@ -1,16 +1,18 @@
 """Phase 4 configuration: full benchmark comparison of feedback conditions.
 
-This experiment compares four feedback conditions head-to-head on a larger
+This experiment compares six feedback conditions head-to-head on a larger
 MA-BBOB benchmark (20 instances, 500 candidates):
-  - vanilla:      AOCC only
-  - behavioural:  AOCC + 5 neutral behavioral features
-  - sage:         AOCC + structural code guidance (SAGE)
-  - combined:     AOCC + 5 neutral features + SAGE
+  - vanilla:              AOCC only
+  - neutral:              AOCC + 5 neutral behavioral features
+  - directional:          AOCC + 5 directional behavioral features
+  - sage:                 AOCC + structural code guidance (SAGE)
+  - combined_neutral:     AOCC + 5 neutral features + SAGE
+  - combined_directional: AOCC + 5 directional features + SAGE
 
-All conditions use gemini-3-flash, (1+1)-ES with 90/10 refine/explore,
-and 10 independent seeds per condition.
+All conditions use gemini-3-flash with thinking disabled (thinking_budget=0),
+(1+1)-ES with 90/10 refine/explore, and 10 independent seeds per condition.
 
-Total: 4 conditions x 10 seeds = 40 runs.
+Total: 6 conditions x 10 seeds = 60 runs.
 """
 
 import os
@@ -30,19 +32,25 @@ from .phase1_config import (
 EVAL_TIMEOUT = 1200
 
 # ---------------------------------------------------------------------------
-# Model — gemini-3-flash (best from Phase 1)
+# Model — gemini-3-flash (best from Phase 1), thinking disabled
 # ---------------------------------------------------------------------------
 MODEL_TAG = "gemini-3-flash"
-MODEL_CFG = {"type": "gemini", "model": "gemini-3-flash-preview"}
+MODEL_CFG = {
+    "type": "gemini",
+    "model": "gemini-3-flash-preview",
+    "generation_config": {"thinking_config": {"thinking_budget": 0}},
+}
 
 # ---------------------------------------------------------------------------
-# Benchmark — 20 MA-BBOB instances selected for per-function uniformity
+# Benchmark — 20 MA-BBOB instances selected by group-stratified greedy + swap
 # ---------------------------------------------------------------------------
-# Selected by analysis/select_instances_phase4.py: greedy + SA (20 restarts)
-# + local search. Scoring = -missing*100 - func_cv*10 - group_std.
-# Coverage: 24/24 functions, CV=0.067, all groups within 3% of ideal 20%.
-TRAINING_INSTANCES = [35, 48, 50, 288, 396, 445, 514, 590, 605, 642,
-                      680, 721, 725, 770, 780, 805, 816, 831, 916, 968]
+# Selected by analysis/select_instances.py methodology (greedy + local search)
+# with K=20, excluding Phase 1 instances. Scoring = coverage_penalty
+# - 3.0*func_cv - 5.0*group_std.
+# Coverage: 24/24 functions, func CV=0.080, group std=0.011
+# Group shares: Sep 20.0%, Low/mod 18.0%, High/uni 20.7%, Multi-adeq 21.3%, Multi-weak 20.0%
+TRAINING_INSTANCES = [22, 93, 166, 196, 203, 288, 321, 408, 480, 513,
+                      528, 598, 697, 781, 784, 803, 894, 947, 951, 999]
 
 # ---------------------------------------------------------------------------
 # Evolution settings
@@ -51,7 +59,7 @@ LLAMEA_BUDGET = 500
 RUN_SEEDS = list(range(10))  # 10 independent seeds per condition
 
 # ---------------------------------------------------------------------------
-# Top 5 neutral features (from Phase 3 screening)
+# Top 5 neutral features (from Phase 3 screening, ranked by mean best AOCC)
 # ---------------------------------------------------------------------------
 NEUTRAL_FEATURES = [
     "intensification_ratio",
@@ -62,16 +70,29 @@ NEUTRAL_FEATURES = [
 ]
 
 # ---------------------------------------------------------------------------
+# Top 5 directional features (from Phase 3 screening, ranked by mean best AOCC)
+# ---------------------------------------------------------------------------
+DIRECTIONAL_FEATURES = [
+    "fitness_plateau_fraction",
+    "avg_improvement",
+    "half_convergence_time",
+    "longest_no_improvement_streak",
+    "improvement_spatial_correlation",
+]
+
+# ---------------------------------------------------------------------------
 # Condition registry
 # ---------------------------------------------------------------------------
 # Each condition maps to a dict with:
 #   - feedback: "vanilla" or "behavioural" (which feedback function to use)
 #   - sage: bool (whether to enable feature_guided_mutation in LLaMEA)
 CONDITIONS = {
-    "vanilla":     {"feedback": "vanilla",     "sage": False},
-    "behavioural": {"feedback": "behavioural", "sage": False},
-    "sage":        {"feedback": "vanilla",     "sage": True},
-    "combined":    {"feedback": "behavioural", "sage": True},
+    "vanilla":              {"feedback": "vanilla",      "sage": False},
+    "neutral":              {"feedback": "neutral",      "sage": False},
+    "directional":          {"feedback": "directional",  "sage": False},
+    "sage":                 {"feedback": "vanilla",      "sage": True},
+    "combined_neutral":     {"feedback": "neutral",      "sage": True},
+    "combined_directional": {"feedback": "directional",  "sage": True},
 }
 
 # ---------------------------------------------------------------------------
