@@ -1,18 +1,16 @@
 """Phase 4 configuration: full benchmark comparison of feedback conditions.
 
-This experiment compares six feedback conditions head-to-head on a larger
+This experiment compares four feedback conditions head-to-head on a larger
 MA-BBOB benchmark (20 instances, 500 candidates):
   - vanilla:              AOCC only
   - neutral:              AOCC + 5 neutral behavioral features
-  - directional:          AOCC + 5 directional behavioral features
   - sage:                 AOCC + structural code guidance (SAGE)
   - combined_neutral:     AOCC + 5 neutral features + SAGE
-  - combined_directional: AOCC + 5 directional features + SAGE
 
 All conditions use gemini-3-flash with thinking disabled (thinking_budget=0),
 (1+1)-ES with 90/10 refine/explore, and 10 independent seeds per condition.
 
-Total: 6 conditions x 10 seeds = 60 runs.
+Total: 4 conditions x 10 seeds = 40 runs.
 """
 
 import os
@@ -87,12 +85,10 @@ DIRECTIONAL_FEATURES = [
 #   - feedback: "vanilla" or "behavioural" (which feedback function to use)
 #   - sage: bool (whether to enable feature_guided_mutation in LLaMEA)
 CONDITIONS = {
-    "vanilla":              {"feedback": "vanilla",      "sage": False},
-    "neutral":              {"feedback": "neutral",      "sage": False},
-    "directional":          {"feedback": "directional",  "sage": False},
-    "sage":                 {"feedback": "vanilla",      "sage": True},
-    "combined_neutral":     {"feedback": "neutral",      "sage": True},
-    "combined_directional": {"feedback": "directional",  "sage": True},
+    "vanilla":          {"feedback": "vanilla", "sage": False},
+    "neutral":          {"feedback": "neutral", "sage": False},
+    "sage":             {"feedback": "vanilla", "sage": True},
+    "combined_neutral": {"feedback": "neutral", "sage": True},
 }
 
 # ---------------------------------------------------------------------------

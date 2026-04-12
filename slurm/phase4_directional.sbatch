@@ -41,11 +41,14 @@ mkdir -p logs/slurm
 if [ -f .env ]; then
     set -a && source .env && set +a
 fi
-if [ -z "${VERTEXAI_PROJECT:-}" ]; then
-    echo "ERROR: VERTEXAI_PROJECT not set. Add to ~/thesis/.env" >&2
+if [ -n "${VERTEXAI_PROJECT:-}" ]; then
+    echo "Gemini backend: Vertex AI (project=$VERTEXAI_PROJECT location=${VERTEXAI_LOCATION:-global})"
+elif [ -n "${GOOGLE_API_KEY:-}" ] || [ -n "${GEMINI_API_KEY:-}" ]; then
+    echo "Gemini backend: Google AI Studio (API key)"
+else
+    echo "ERROR: set either VERTEXAI_PROJECT or GEMINI_API_KEY in ~/thesis/.env" >&2
     exit 1
 fi
-echo "Vertex AI: project=$VERTEXAI_PROJECT location=${VERTEXAI_LOCATION:-global}"
 
 # --- Check if a seed-run is already complete ---
 is_complete() {
