@@ -133,6 +133,25 @@ def _find_resume_dir(results_dir, condition_tag, seed, budget=None):
     return best_candidate
 
 
+def _seal_incomplete_progress_entries(logger):
+    """Mark any start_time-without-end_time entries in progress.json as ended.
+
+    BLADE's ``ExperimentLogger.open_run()`` treats such entries as
+    previously-crashed attempts and ``shutil.rmtree``'s the referenced
+    log_dir before starting a new run. When resuming from a pickle that
+    lives in that log_dir, this destroys the checkpoint.
+    """
+    from datetime import datetime
+    now = datetime.now().isoformat()
+    changed = False
+    for entry in logger.progress.get("runs", []):
+        if entry.get("start_time") and not entry.get("end_time"):
+            entry["end_time"] = now
+            changed = True
+    if changed:
+        logger._write_progress()
+
+
 def is_seed_complete(results_dir, condition_tag, seed, budget=None):
     """Check if a (condition, seed) run is already complete.
 
@@ -198,6 +217,10 @@ def run_single_seed(
     )
     os.makedirs(result_dir, exist_ok=True)
     logger = ExperimentLogger(result_dir)
+    # Prevent BLADE from deleting prior incomplete run dirs (which hold the
+    # resume checkpoint + log history). Safe to always seal: finished entries
+    # already have end_time set.
+    _seal_incomplete_progress_entries(logger)
 
     experiment = Experiment(
         methods=[method],
