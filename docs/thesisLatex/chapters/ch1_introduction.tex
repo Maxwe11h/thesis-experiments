@@ -1,3 +1,4 @@
+% !TEX root = ../thesis.tex
 % =============================================================================
 % Chapter 1: Introduction
 % =============================================================================
@@ -5,40 +6,27 @@
 \chapter{Introduction}
 \label{ch:introduction}
 
-% ---------------------------------------------------------------------------
-\section{Context}
-\label{sec:intro-context}
-
-Designing effective optimisation algorithms is hard. Decades of research have produced hundreds of metaheuristic strategies (evolution strategies, differential evolution, particle swarm optimisation, among others), each with its own strengths, parameters, and failure modes~\cite{eiben2015introduction}. Selecting or configuring the right algorithm for a given problem remains a largely manual process guided by researcher intuition, despite substantial progress in automated algorithm configuration~\cite{hutter2009paramils} and selection~\cite{rice1976algorithmselection}.
+Designing effective optimisation algorithms is hard. Decades of research have produced hundreds of metaheuristic strategies, each with its own strengths, parameters, and failure modes~\cite{eiben2015introduction}. Selecting or configuring the right algorithm for a given problem remains a largely manual process guided by researcher intuition, despite substantial progress in automated algorithm configuration~\cite{hutter2009paramils} and selection~\cite{rice1976algorithmselection}.
 
 Large Language Models (LLMs) have introduced a fundamentally new paradigm for algorithm design. Rather than searching within a predefined space of modules or parameters, LLMs can generate complete optimisation algorithms as executable code by leveraging ideas from the vast body of algorithmic knowledge encoded in their training data. The LLaMEA framework~\cite{vanStein2024LLaMEA} embeds an LLM within an evolutionary loop. It generates candidate algorithms, evaluates them on benchmark problems, and uses the performance feedback to guide subsequent generations. On standard benchmarks, LLaMEA-generated algorithms rival or surpass established metaheuristics like CMA-ES~\cite{hansen2001cmaes}.
 
-% ---------------------------------------------------------------------------
-\section{The Feedback Gap}
-\label{sec:intro-gap}
-
 In the standard LLaMEA loop the sole feedback signal to the LLM is the Area Over the Convergence Curve (AOCC)~\cite{vanStein2024LLaMEA}, a scalar performance score. While AOCC captures anytime performance, it compresses the entire optimisation trajectory, spanning thousands of evaluations across multiple problem instances, into a single number. Two algorithms with identical AOCC scores may exhibit fundamentally different search behaviours. One might converge quickly through aggressive exploitation, while another might explore broadly before settling on a good solution.
 
-The BLADE benchmarking suite ~\cite{vanStein2025BLADE} captures algorithmic behaviour by storing the algorithm's execution trajectory. Behavioural features extracted from these trajectories can quantify exploration breadth, exploitation intensity, convergence speed, step-size dynamics, and stagnation patterns. Prior work has shown that these features explain why certain LLM-generated algorithms outperform others ~\cite{vanStein2025Behaviour}, and that \emph{structural} code features can successfully guide the algorithm design process when fed back as natural-language instructions~\cite{vanStein2026LLaMEASAGE}.
+The BLADE benchmarking suite ~\cite{vanStein2025BLADE} captures algorithmic behaviour by storing the algorithm's execution trajectory. Behavioural features extracted from these trajectories can quantify exploration breadth, exploitation intensity, convergence speed, step-size dynamics, and stagnation patterns. Prior work has shown that these features explain why certain LLM-generated algorithms outperform others ~\cite{vanStein2025Behaviour}, and that structural code features can successfully guide the algorithm design process when fed back as natural-language instructions~\cite{vanStein2026LLaMEASAGE}.
 
-The question this thesis addresses is whether behavioural features, which describe what the algorithm \emph{does} rather than what it \emph{is}, can play a similar guiding role. And critically, whether the \emph{framing} of that feedback matters. Does the LLM benefit from explicit guidance about which behavioural direction is desirable, or does simply reporting the observation suffice?
+The question this thesis addresses is whether behavioural features, which describe what the algorithm \emph{does} rather than what it \emph{is}, can play a similar guiding role. Answering it raises three interrelated questions: which LLMs are capable enough to generate high-quality algorithms in the first place, which behavioural features actually carry information about algorithm quality, and whether the \emph{framing} of that feedback matters to the LLM.
 
-% ---------------------------------------------------------------------------
-\section{Research Question}
-\label{sec:intro-rq}
+The following research question and sub-questions guide the exploration of this thesis,
 
-\begin{quote}
-\textit{Does incorporating trajectory-based behavioural features into the evolutionary feedback loop of LLM-driven optimisation algorithm design improve the performance and generalisation of discovered metaheuristics compared to fitness-only feedback, and does the framing of that feedback (neutral, directional, or comparative) affect the outcome?}
-\end{quote}
+\medskip
 
-% ---------------------------------------------------------------------------
-\section{Contributions}
-\label{sec:intro-contributions}
+\begin{description}[leftmargin=4.5em, labelwidth=3.7em, labelsep=0.6em, itemsep=0.45em, align=left, font=\normalfont\bfseries]
+  \item[RQ.] \itshape Can trajectory-based behavioural feedback guide LLMs to design better optimisation algorithms?
+  \item[SubQ1.] \itshape Which LLMs can reliably generate high-quality metaheuristics for continuous black-box optimisation?
+  \item[SubQ2.] \itshape Which trajectory-based behavioural features are most informative about algorithm quality?
+  \item[SubQ3.] \itshape Does the framing of behavioural feedback (neutral observation, directional guidance, or comparative anchoring) affect the performance of LLM-generated algorithms?
+\end{description}
 
-\begin{enumerate}
-  \item \textbf{Extended behavioural feature set.} We design 21 new trajectory-based features across four categories (step-size dynamics, information-theoretic measures, adapted population dynamics, and novel metrics), yielding a total of 32 behavioural features when combined with the 11 existing BLADE metrics. Six of these are entirely novel features that capture aspects of algorithm behaviour not previously measured in the optimisation literature.
+\medskip
 
-  \item \textbf{Multi-model LLM screening.} We screen 10 language models, spanning 3B to 32B parameters across six model families plus two cloud API models, on their ability to generate functional, high-quality optimisation algorithms. This establishes which models are viable for automated algorithm design and provides a large dataset of algorithm--behaviour observations for feature analysis.
-
-  \item \textbf{Systematic evaluation of feedback formats.} We test three feedback formats (neutral, directional, comparative) across 10 selected behavioural features, totalling 29 experimental conditions with 5 independent seeds each. The results reveal that neutral feedback, simply reporting the behavioural observation without interpretation, consistently outperforms prescriptive formats that tell the LLM which direction is better. The LLM responds to behavioural feedback (it produces behaviourally different algorithms), but it cannot reliably translate high-level behavioural objectives into the right code changes.
-\end{enumerate}
+This thesis makes four contributions to the literature on LLM-driven automated algorithm design. The first is an extended behavioural feature set that grows the existing BLADE catalogue from 11 to 32 metrics. These span existing trajectory-based features adapted for this task~\cite{vanStein2025Behaviour,cenikj2023dynamorep,cenikj2026features}, information-theoretic inspired features that treat fitness longitudinally~\cite{richman2000sampen,bandt2002permutation,weinberger1990fitness,lempel1976complexity}, and six metrics entirely new to the optimisation literature~\cite{barabasi2005bursts}. The second is a multi-model screening of 10 LLMs, spanning 3B to 32B parameters across six model families plus two cloud API models, that identifies viable candidates for automated metaheuristic design. The third is evidence that the framing of behavioural feedback matters. Across 29 experimental conditions comparing neutral, directional, and comparative formats, neutral reporting (simply stating the behavioural observation without interpretation) consistently outperforms prescriptive formats that tell the LLM which direction is better. The fourth is a full-benchmark head-to-head comparison of behavioural, structural ~\cite{vanStein2026LLaMEASAGE}, and combined feedback against the vanilla AOCC-only baseline, which positions trajectory-based signals relative to the strongest existing alternative.

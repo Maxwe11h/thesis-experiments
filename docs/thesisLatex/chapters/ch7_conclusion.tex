@@ -1,3 +1,4 @@
+% !TEX root = ../thesis.tex
 % =============================================================================
 % Chapter 7: Conclusion and Future Work
 % =============================================================================
@@ -9,7 +10,7 @@
 \section{Summary}
 \label{sec:conc-summary}
 
-This thesis investigated whether trajectory-derived behavioural features can guide LLM-driven metaheuristic design when incorporated into the evolutionary feedback loop. We designed an extended set of 32 behavioural features (21 new, including 6 entirely novel metrics), screened 10 language models to identify viable candidates for automated algorithm design, and systematically evaluated three feedback formats (neutral, directional, and comparative) across 10 selected features.
+This thesis asked whether trajectory-based behavioural feedback can guide LLMs to design better optimisation algorithms. We addressed this through three sub-questions: which LLMs are viable for algorithm generation (SubQ1), which behavioural features are most informative about algorithm quality (SubQ2), and whether the framing of that feedback affects performance (SubQ3). To answer them, we designed an extended set of 32 behavioural features (21 new, including 6 entirely novel metrics), screened 10 language models to identify viable candidates for automated algorithm design, and systematically evaluated three feedback formats (neutral, directional, and comparative) across 10 selected features.
 
 The results are clear: behavioural features provide useful observational context that maintains or slightly improves algorithm quality when presented neutrally. Prescriptive feedback, whether directional guidance or comparative anchoring against reference values, degrades performance despite the LLM clearly responding to it. The overall format ranking is consistent: neutral (mean best AOCC $= 0.869$) $>$ directional ($0.840$) $>$ comparative ($0.788$), with the difference significant at $p = 0.003$ (Kruskal--Wallis).
 

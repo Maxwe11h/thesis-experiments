@@ -1,3 +1,4 @@
+% !TEX root = ../thesis.tex
 % =============================================================================
 % Chapter 2: Background and Related Work
 % =============================================================================
@@ -100,4 +101,4 @@ On the MA-BBOB benchmark, LLaMEA-SAGE achieves faster convergence than vanilla L
 \paragraph{Behavioural Feedback}
 This thesis investigates a signal complementary to those in LLaMEA-SAGE, namely \emph{behavioural} features derived from algorithm execution trajectories. Where code features describe \emph{what the algorithm is} (its structure), behavioural features describe \emph{what the algorithm does} (how it searches). These features are \emph{distal}, emerging from the interaction between the algorithm's code and the optimisation landscape through potentially complex and non-obvious mechanisms. Telling the LLM ``increase \texttt{step\_size\_autocorrelation}'' is fundamentally different from ``increase cyclomatic complexity''. The former requires the LLM to infer which code changes would produce a desired \emph{emergent} property, while the latter can be achieved through direct code manipulation.
 
-This distinction raises the central question of this thesis. Can an LLM translate high-level behavioural descriptions into the right code changes? And if so, does the framing of that feedback, whether neutral observation, directional guidance, or comparative anchoring, affect the outcome?
+This proximal--distal distinction is what makes behavioural feedback an open question for LLM-driven algorithm design: whether such indirect signals can be communicated to the LLM in a way that meaningfully improves the generated algorithms, and whether the \emph{framing} of that signal --- neutral, directional, or comparative --- changes its effect, is precisely the subject of SubQ3.

@@ -38,3 +38,19 @@ results_token_test/
 BLADE/iohblade/problems/venvs/
 
 .env
+
+# LaTeX build artifacts
+*.aux
+*.bbl
+*.blg
+*.fdb_latexmk
+*.fls
+*.log
+*.out
+*.synctex.gz
+*.toc
+*.lof
+*.lot
+
+# Thesis PDF output
+docs/thesisLatex/thesis.pdf
