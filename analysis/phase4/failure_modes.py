@@ -16,6 +16,8 @@ from __future__ import annotations
 
 import importlib.util
 import os
+import signal
+from contextlib import contextmanager
 from pathlib import Path
 from typing import Tuple
 
@@ -33,6 +35,26 @@ def _load_llamea_utils():
 
 
 _ALLOWED_IMPORTS = ['numpy']  # mirrors experiments/phase1_config.py:ALLOWED_IMPORTS
+
+_SMOKE_TIMEOUT_S = 10
+
+
+class _SmokeTimeout(Exception):
+    pass
+
+
+@contextmanager
+def _alarm(seconds: int):
+    """SIGALRM-based hard timeout for CPU-bound user code. Unix only."""
+    def _handler(signum, frame):
+        raise _SmokeTimeout(f'exceeded {seconds}s smoke-test budget')
+    prev = signal.signal(signal.SIGALRM, _handler)
+    signal.alarm(seconds)
+    try:
+        yield
+    finally:
+        signal.alarm(0)
+        signal.signal(signal.SIGALRM, prev)
 
 
 def classify_failure(code: str) -> Tuple[str | None, str]:
@@ -95,9 +117,12 @@ def classify_failure(code: str) -> Tuple[str | None, str]:
         l_tmp = aoc_logger(100, upper=1e2, triggers=[ioh_logger.trigger.ALWAYS])
         prob = ioh.get_problem(11, 1, 2)
         prob.attach_logger(l_tmp)
-        algo(prob)
+        with _alarm(_SMOKE_TIMEOUT_S):
+            algo(prob)
     except OverBudgetException:
         return None, 'ok'
+    except _SmokeTimeout as e:
+        return 'runtime_error', f'timeout: {e}'
     except TypeError as e:
         return 'interface_mismatch', f'__call__ failed: {e}'
     except Exception as e:
