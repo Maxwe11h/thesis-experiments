@@ -1,0 +1,5 @@
+condition,seed,algorithm_name,final_aocc,lines_of_code,max_nesting
+vanilla,3,IGA_CMA,0.9555,106,6
+neutral,0,BIPOP_MA_CMA_ES,0.9545,115,6
+sage,5,CMA_EES,0.9554,95,6
+combined_neutral,7,OM_CMA_EIS,0.9524,95,6

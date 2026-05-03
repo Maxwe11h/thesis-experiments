@@ -1,0 +1,5 @@
+condition,code_generation,import_violation,interface_mismatch,runtime_error,unclassified_success,total,code_generation_pct,import_violation_pct,interface_mismatch_pct,runtime_error_pct,unclassified_success_pct
+vanilla,9,34,1,710,85,839,1.1,4.1,0.1,84.6,10.1
+neutral,23,26,7,620,20,696,3.3,3.7,1.0,89.1,2.9
+sage,8,151,10,867,12,1048,0.8,14.4,1.0,82.7,1.1
+combined_neutral,16,36,38,770,19,879,1.8,4.1,4.3,87.6,2.2

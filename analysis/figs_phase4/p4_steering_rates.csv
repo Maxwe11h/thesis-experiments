@@ -1,0 +1,6 @@
+feature,neutral,sage,combined_neutral
+intensification_ratio,51.9,58.3,69.3
+dimension_convergence_heterogeneity,54.4,43.4,30.3
+fitness_plateau_fraction,44.2,62.1,66.5
+avg_improvement,41.9,40.9,34.5
+improvement_spatial_correlation,46.3,57.2,58.4
