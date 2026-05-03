@@ -26,6 +26,7 @@ results_phase1/
 results_phase3/
 results_phase4/
 results_phase4_partial/
+results_phase4_full_suite/
 results_token_test/
 
 # Claude Code local state
