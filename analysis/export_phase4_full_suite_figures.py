@@ -135,10 +135,10 @@ def _aocc(curves: np.ndarray) -> np.ndarray:
 # ---------------------------------------------------------------------------
 # ECDF / EAF computation
 # ---------------------------------------------------------------------------
-def compute_ecdf(curves: np.ndarray, dim: int) -> tuple[np.ndarray, np.ndarray]:
-    """Return (fe_grid_per_dim, ecdf) where ecdf is mean fraction-of-runs
-    that have hit each of N_TARGETS log-spaced targets, evaluated on
-    N_FE_GRID log-spaced FE points.
+def compute_ecdf(curves: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
+    """Return (fe_grid, ecdf) where ecdf is mean fraction-of-runs that have
+    hit each of N_TARGETS log-spaced targets, evaluated on N_FE_GRID
+    log-spaced FE points.
 
     Curves are best-so-far (monotone non-increasing) so `curves[r, fe]`
     equals the minimum fitness achieved by run r within the first fe+1
@@ -152,7 +152,7 @@ def compute_ecdf(curves: np.ndarray, dim: int) -> tuple[np.ndarray, np.ndarray]:
     sub = curves[:, fe_grid - 1]                                 # (n_runs, n_fe)
     hits = sub[:, :, None] <= targets[None, None, :]             # (n_runs, n_fe, n_t)
     ecdf = hits.mean(axis=(0, 2))                                # (n_fe,)
-    return fe_grid / dim, ecdf
+    return fe_grid, ecdf
 
 
 # ---------------------------------------------------------------------------
@@ -162,10 +162,11 @@ def fig_ecdf() -> None:
     fig, axes = plt.subplots(1, 3, figsize=(13, 4.2), sharey=True)
 
     for ax, dim in zip(axes, DIMS):
+        budget = BUDGET_FACTOR * dim
         for alg in ALGS:
             df = load_shard(alg, dim)
             curves = stack_curves(df)
-            x, y = compute_ecdf(curves, dim)
+            x, y = compute_ecdf(curves)
             ax.plot(
                 x, y,
                 color=ALG_COLORS[alg],
@@ -174,11 +175,14 @@ def fig_ecdf() -> None:
                 label=ALG_LABELS[alg],
             )
         ax.set_xscale("log")
-        ax.set_xlabel("function evaluations / dim")
+        ax.set_xlabel("function evaluations")
         ax.set_title(f"$d = {dim}$")
-        ax.set_xlim(1e-1, BUDGET_FACTOR)
+        ax.set_xlim(1, budget)
         ax.set_ylim(0, 1)
         ax.set_yticks(np.arange(0, 1.01, 0.2))
+        ax.grid(True, which="major", color="#cccccc", linewidth=0.6, alpha=0.7)
+        ax.grid(True, which="minor", axis="x", color="#e6e6e6", linewidth=0.4, alpha=0.7)
+        ax.set_axisbelow(True)
         for spine in ("top", "right"):
             ax.spines[spine].set_color("#bbbbbb")
 
@@ -242,6 +246,8 @@ def fig_final_aocc() -> pd.DataFrame:
         ax.set_title(f"$d = {dim}$")
         ax.set_ylim(0, 1)
         ax.tick_params(axis="x", labelrotation=20)
+        ax.yaxis.grid(True, which="major", color="#cccccc", linewidth=0.6, alpha=0.7)
+        ax.set_axisbelow(True)
         for spine in ("top", "right"):
             ax.spines[spine].set_color("#bbbbbb")
 
