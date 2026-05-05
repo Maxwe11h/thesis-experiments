@@ -159,37 +159,57 @@ def compute_ecdf(curves: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
 # Figure 1 — ECDF / EAF per dim
 # ---------------------------------------------------------------------------
 def fig_ecdf() -> None:
-    fig, axes = plt.subplots(1, 3, figsize=(13, 4.2), sharey=True)
+    fig, axes = plt.subplots(2, 3, figsize=(13, 7),
+                             sharex="col", sharey="row")
 
-    for ax, dim in zip(axes, DIMS):
-        budget = BUDGET_FACTOR * dim
-        for alg in ALGS:
+    # Pre-compute curves so each (alg, dim) shard is loaded only once.
+    cache = {}
+    for alg in ALGS:
+        for dim in DIMS:
             df = load_shard(alg, dim)
-            curves = stack_curves(df)
-            x, y = compute_ecdf(curves)
-            ax.plot(
-                x, y,
-                color=ALG_COLORS[alg],
-                linestyle=ALG_LINESTYLES[alg],
-                linewidth=2.0,
-                label=ALG_LABELS[alg],
-            )
-        ax.set_xlabel("function evaluations")
-        ax.set_title(f"$d = {dim}$")
-        ax.set_xlim(0, budget)
-        ax.set_ylim(0, 1)
-        ax.set_yticks(np.arange(0, 1.01, 0.2))
-        ax.grid(True, which="major", color="#cccccc", linewidth=0.6, alpha=0.7)
-        ax.set_axisbelow(True)
-        for spine in ("top", "right"):
-            ax.spines[spine].set_color("#bbbbbb")
+            x, y = compute_ecdf(stack_curves(df))
+            cache[(alg, dim)] = (x, y)
 
-    axes[0].set_ylabel("EAF")
-    axes[-1].legend(
+    row_ylims = [(0.0, 1.0), (0.5, 1.0)]
+    row_yticks = [np.arange(0.0, 1.01, 0.2), np.arange(0.5, 1.01, 0.1)]
+
+    for col, dim in enumerate(DIMS):
+        budget = BUDGET_FACTOR * dim
+        for row, (ylim, yticks) in enumerate(zip(row_ylims, row_yticks)):
+            ax = axes[row, col]
+            for alg in ALGS:
+                x, y = cache[(alg, dim)]
+                ax.plot(
+                    x, y,
+                    color=ALG_COLORS[alg],
+                    linestyle=ALG_LINESTYLES[alg],
+                    linewidth=2.0,
+                    label=ALG_LABELS[alg],
+                )
+            ax.set_xscale("log")
+            ax.set_xlim(1, budget)
+            ax.set_ylim(*ylim)
+            ax.set_yticks(yticks)
+            ax.grid(True, which="major", color="#cccccc",
+                    linewidth=0.6, alpha=0.7)
+            ax.grid(True, which="minor", axis="x", color="#e6e6e6",
+                    linewidth=0.4, alpha=0.7)
+            ax.set_axisbelow(True)
+            for spine in ("top", "right"):
+                ax.spines[spine].set_color("#bbbbbb")
+            if row == 0:
+                ax.set_title(f"$d = {dim}$")
+            else:
+                ax.set_xlabel("Function evaluations")
+
+    axes[0, 0].set_ylabel("EAF (full)")
+    axes[1, 0].set_ylabel("EAF (zoomed)")
+    axes[0, -1].legend(
         loc="lower right", frameon=False,
         handlelength=2.4, borderpad=0.4, labelspacing=0.3,
     )
 
+    fig.tight_layout()
     out = THESIS_FIG_DIR / "fig_phase4_fullsuite_ecdf.pdf"
     fig.savefig(out, **SAVEFIG_KW)
     fig.savefig(LOCAL_FIG_DIR / "p46_ecdf.pdf", **SAVEFIG_KW)
