@@ -536,12 +536,12 @@ baseline  & CMA-ES~\cite{hansen2001cmaes} & 0.728 & 0.701 & 0.650 \\
 \end{tabular}
 \end{table}
 
-\begin{figure}[t]
+\begin{figure*}[t]
   \centering
   \includegraphics[width=\textwidth]{figures/fig_phase4_fullsuite_ecdf.pdf}
-  \caption{Empirical attainment-function-based ECDF curves on the full $1{,}000$-instance MA-BBOB pool at $d \in \{5, 10, 20\}$. Each curve aggregates 51 log-spaced fitness targets in $[10^{-8}, 10^2]$ across $5{,}000$ runs per algorithm. The dashed line marks the external CMA-ES baseline; the four LLM-generated variants overlap to within line-width and sit above it by a stable margin throughout the budget.}
+  \caption{Empirical attainment function (EAF) on the full $1{,}000$-instance MA-BBOB pool at $d \in \{5, 10, 20\}$. Each curve aggregates 51 log-spaced fitness targets in $[10^{-8}, 10^2]$ across $5{,}000$ runs per algorithm; the y-axis reports the fraction of (run, target) pairs satisfied by a given function-evaluation budget. The dashed line marks the external CMA-ES baseline; the four LLM-generated variants overlap to within line-width and sit above it by a stable margin throughout the budget.}
   \label{fig:phase4-fullsuite-ecdf}
-\end{figure}
+\end{figure*}
 
 \Cref{tab:phase4-fullsuite-summary} reports the mean AOCC per (algorithm, dimensionality) cell. Three observations follow. First, all four LLM-generated algorithms beat the CMA-ES baseline by a margin of $0.10$--$0.12$ mean AOCC, uniformly across $d \in \{5, 10, 20\}$. The smallest gap, $0.10$ at $d = 20$, is still larger by an order of magnitude than the $0.022$--$0.023$ within-condition spread observed in the head-to-head comparison of \cref{sec:results-stage4-agg}. Second, the ranking within the LLM group is nearly indistinguishable: \texttt{IGA\_CMA} (vanilla) narrowly leads at $d = 5$ at $0.848$, while \texttt{BIPOP\_MA\_CMA\_ES} (neutral) takes the lead at $d = 10$ ($0.810$) and $d = 20$ ($0.745$). The total spread among the four LLM winners is $0.03$--$0.05$ AOCC across the three dimensionalities --- close to the noise floor implied by the heavy-tailed per-instance AOCC distributions. Third, the head-to-head winner of \cref{sec:results-stage4-agg} (combined) does not reproduce its lead on the broader benchmark: it ranks fourth at $d = 5$, third at $d = 10$, and second at $d = 20$. The $0.022$--$0.023$ AOCC advantage of the combined condition observed on the twenty-function set therefore does not transfer to the full pool.
 
