@@ -184,7 +184,7 @@ def fig_ecdf() -> None:
         for spine in ("top", "right"):
             ax.spines[spine].set_color("#bbbbbb")
 
-    axes[0].set_ylabel("fraction of (run, target) hits")
+    axes[0].set_ylabel("EAF")
     axes[-1].legend(
         loc="lower right", frameon=False,
         handlelength=2.4, borderpad=0.4, labelspacing=0.3,
