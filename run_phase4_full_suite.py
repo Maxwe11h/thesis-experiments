@@ -22,11 +22,14 @@ def main() -> None:
     p.add_argument('--dim', type=int, required=True, choices=DIMS)
     p.add_argument('--instance-start', type=int, default=0)
     p.add_argument('--instance-end', type=int, default=1000)
+    p.add_argument('--n-workers', type=int, default=1,
+                   help='multiprocessing.Pool workers; 1 = sequential')
     args = p.parse_args()
 
     out_dir = Path(RESULTS_DIR) / args.algorithm / f'dim{args.dim}'
     instances = list(range(args.instance_start, args.instance_end))
-    out = run_shard(args.algorithm, args.dim, instances, out_dir)
+    out = run_shard(args.algorithm, args.dim, instances, out_dir,
+                    n_workers=args.n_workers)
     print(f'wrote {out}')
 
 

@@ -8,7 +8,7 @@ import os
 
 from .phase1_config import BBOB_BOUNDS  # noqa: F401  (re-exported for runner)
 
-EVAL_TIMEOUT = 1800  # 30 min per algorithm x dim x instance shard
+EVAL_TIMEOUT = int(os.environ.get('EVAL_TIMEOUT_SECONDS', 1800))  # per-shard wall budget
 
 # Test set
 ALL_INSTANCES = list(range(1000))

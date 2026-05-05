@@ -4,10 +4,14 @@ The runner deliberately uses no LLM. It compiles the saved winner code,
 instantiates it, and evaluates each instance with the BBOB convention. CMA-ES
 is supplied by `cma` (pycma) at the same budget for direct comparison.
 
-Output: parquet under <RESULTS_DIR>/<alg>/dim<d>/instances_<batch>.parquet.
+Output: parquet under <RESULTS_DIR>/<alg>/dim<d>/instances_<batch>.parquet,
+with one row per (instance, eval_seed) carrying the scalar AOCC plus the
+full per-FE best-so-far curve (float32). With `n_workers > 1` the
+(instance × seed) grid is evaluated in a `multiprocessing.Pool(fork)`.
 """
 from __future__ import annotations
 
+import multiprocessing as mp
 import time
 from pathlib import Path
 from typing import Iterable
@@ -55,8 +59,8 @@ def _ensure_ma_bbob_data():
     return _MA_BBOB_DATA
 
 
-def _run_once(algo_factory, dim: int, instance_idx: int, seed: int) -> float:
-    """Drive one (instance, seed) optimisation run and return its per-run AOCC."""
+def _run_once(algo_factory, dim: int, instance_idx: int, seed: int) -> tuple[float, np.ndarray]:
+    """Drive one (instance, seed) optimisation run, returning (aocc, curve_float32)."""
     import ioh  # imported lazily so unit tests don't require it
 
     np.random.seed(seed)
@@ -95,7 +99,7 @@ def _run_once(algo_factory, dim: int, instance_idx: int, seed: int) -> float:
     if pos[0] < budget:
         curve[pos[0]:] = curve[pos[0] - 1] if pos[0] > 0 else 1e2
 
-    return _aocc(curve, budget)
+    return _aocc(curve, budget), curve.astype(np.float32)
 
 
 class _CMAESWrapper:
@@ -124,26 +128,65 @@ def _factory(name: str):
     return cls
 
 
+# --- Pool worker plumbing -----------------------------------------------------
+# Globals are populated by `_worker_init` (fork-only) so each worker has the
+# algorithm factory cached and avoids re-loading per task.
+_WORKER_FACTORY = None
+_WORKER_DIM = None
+
+
+def _worker_init(alg_name: str, dim: int) -> None:
+    global _WORKER_FACTORY, _WORKER_DIM
+    _WORKER_FACTORY = _factory(alg_name)
+    _WORKER_DIM = dim
+
+
+def _worker_run(args: tuple[int, int]) -> tuple[int, int, float, np.ndarray]:
+    idx, seed = args
+    aocc, curve = _run_once(_WORKER_FACTORY, _WORKER_DIM, idx, seed)
+    return idx, seed, aocc, curve
+
+
 def run_shard(alg_name: str, dim: int, instance_indices: Iterable[int],
-              out_dir: Path) -> Path:
-    factory = _factory(alg_name)
+              out_dir: Path, n_workers: int = 1) -> Path:
     instance_indices = list(instance_indices)
-    rows = []
+    jobs = [(idx, seed) for idx in instance_indices for seed in range(EVAL_SEEDS)]
     t0 = time.monotonic()
-    for idx in instance_indices:
-        for seed in range(EVAL_SEEDS):
+
+    if n_workers <= 1:
+        factory = _factory(alg_name)
+        results: list[tuple[int, int, float, np.ndarray]] = []
+        for idx, seed in jobs:
             if time.monotonic() - t0 > EVAL_TIMEOUT:
                 raise TimeoutError(
                     f'shard {alg_name} dim={dim} timed out at instance={idx}'
                 )
-            score = _run_once(factory, dim, idx, seed)
-            rows.append({'algorithm': alg_name, 'dim': dim, 'instance': idx,
-                         'eval_seed': seed, 'aocc': score})
+            aocc, curve = _run_once(factory, dim, idx, seed)
+            results.append((idx, seed, aocc, curve))
+    else:
+        ctx = mp.get_context('fork')
+        with ctx.Pool(n_workers, initializer=_worker_init,
+                      initargs=(alg_name, dim)) as pool:
+            results = pool.map(_worker_run, jobs)
+        if time.monotonic() - t0 > EVAL_TIMEOUT:
+            raise TimeoutError(
+                f'shard {alg_name} dim={dim} exceeded EVAL_TIMEOUT in pool mode'
+            )
+
+    rows = [{
+        'algorithm': alg_name,
+        'dim': dim,
+        'instance': idx,
+        'eval_seed': seed,
+        'aocc': aocc,
+        'curve': curve,
+    } for idx, seed, aocc, curve in results]
+
     out_dir = Path(out_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
     out_path = (
         out_dir
         / f'{alg_name}_dim{dim}_inst{min(instance_indices)}-{max(instance_indices)}.parquet'
     )
-    pd.DataFrame(rows).to_parquet(out_path, index=False)
+    pd.DataFrame(rows).to_parquet(out_path, index=False, compression='snappy')
     return out_path
