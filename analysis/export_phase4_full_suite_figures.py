@@ -170,8 +170,8 @@ def fig_ecdf() -> None:
             x, y = compute_ecdf(stack_curves(df))
             cache[(alg, dim)] = (x, y)
 
-    row_ylims = [(0.0, 1.0), (0.5, 1.0)]
-    row_yticks = [np.arange(0.0, 1.01, 0.2), np.arange(0.5, 1.01, 0.1)]
+    row_ylims = [(0.0, 1.0), (0.6, 1.0)]
+    row_yticks = [np.arange(0.0, 1.01, 0.2), np.arange(0.6, 1.01, 0.1)]
 
     for col, dim in enumerate(DIMS):
         budget = BUDGET_FACTOR * dim
@@ -186,14 +186,11 @@ def fig_ecdf() -> None:
                     linewidth=2.0,
                     label=ALG_LABELS[alg],
                 )
-            ax.set_xscale("log")
-            ax.set_xlim(1, budget)
+            ax.set_xlim(0, budget)
             ax.set_ylim(*ylim)
             ax.set_yticks(yticks)
             ax.grid(True, which="major", color="#cccccc",
                     linewidth=0.6, alpha=0.7)
-            ax.grid(True, which="minor", axis="x", color="#e6e6e6",
-                    linewidth=0.4, alpha=0.7)
             ax.set_axisbelow(True)
             for spine in ("top", "right"):
                 ax.spines[spine].set_color("#bbbbbb")
