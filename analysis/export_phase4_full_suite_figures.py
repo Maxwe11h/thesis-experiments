@@ -174,14 +174,12 @@ def fig_ecdf() -> None:
                 linewidth=2.0,
                 label=ALG_LABELS[alg],
             )
-        ax.set_xscale("log")
         ax.set_xlabel("function evaluations")
         ax.set_title(f"$d = {dim}$")
-        ax.set_xlim(1, budget)
+        ax.set_xlim(0, budget)
         ax.set_ylim(0, 1)
         ax.set_yticks(np.arange(0, 1.01, 0.2))
         ax.grid(True, which="major", color="#cccccc", linewidth=0.6, alpha=0.7)
-        ax.grid(True, which="minor", axis="x", color="#e6e6e6", linewidth=0.4, alpha=0.7)
         ax.set_axisbelow(True)
         for spine in ("top", "right"):
             ax.spines[spine].set_color("#bbbbbb")
