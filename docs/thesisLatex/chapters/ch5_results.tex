@@ -516,7 +516,7 @@ The implication for Stage~4 is that the AOCC differences between conditions in \
 \subsection{Full-Suite Generalisation}
 \label{sec:results-stage4-generalisation}
 
-The 20-function set used above is large enough to discriminate condition means at the budget set by 10 seeds, but it is sized to support the head-to-head comparison rather than to estimate generalisation across the full MA-BBOB pool. To position the four winners against the broader benchmark, the best-found algorithm from each condition (\cref{tab:phase4-winners}) plus a CMA-ES~\cite{hansen2001cmaes} baseline are evaluated on all $1{,}000$ MA-BBOB functions $\times$ 5 instance seeds $\times$ \{5, 10, 20\} dimensions under a $2{,}000d$ FE budget, with no LLM in the loop. The total compute is approximately $1.75 \times 10^9$ function evaluations across the five algorithms.
+The 20-function set used above is large enough to discriminate condition means at the budget set by 10 seeds, but it is sized to support the head-to-head comparison rather than to either estimate generalisation across the full MA-BBOB pool or validate that the neutral and combined feedback methodologies produce algorithms that hold up beyond their training conditions. To position the four winners against the broader benchmark, the best-found algorithm from each condition (\cref{tab:phase4-winners}) plus a CMA-ES~\cite{hansen2001cmaes} baseline are evaluated on all $1{,}000$ MA-BBOB functions $\times$ 5 instance seeds $\times$ \{5, 10, 20\} dimensions under a $2{,}000d$ FE budget, with no LLM in the loop. The total compute is approximately $1.75 \times 10^9$ function evaluations across the five algorithms.
 
 \begin{table}[t]
 \centering
