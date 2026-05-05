@@ -495,12 +495,63 @@ combined & \texttt{OM\_CMA\_EIS}       & 7 & 0.9524 &  95 & 6 \\
 \end{tabular}
 \end{table}
 
-\Cref{tab:phase4-winners} reports the best-found algorithm per condition, taken as the candidate with the highest final best-so-far AOCC across the 10 seeds. The four winners span only a $0.0031$ AOCC range, and all four are CMA-ES variants. Their source identifiers (\texttt{IGA\_CMA}, \texttt{BIPOP\_MA\_CMA\_ES}, \texttt{CMA\_EES}, \texttt{OM\_CMA\_EIS}) and code structure (95--115 lines, depth-6 nesting) all share the same family: at the very top of every condition, Gemini~3 Flash returns a CMA-ES variant regardless of the feedback string. The full source for each winner together with a structured family-classification prompt is preserved alongside the analysis output.\footnote{\texttt{analysis/figs\_phase4/p4\_winners/}, with one \texttt{<cond>\_winner.py} and one \texttt{<cond>\_prompt.txt} per condition.}
+\Cref{tab:phase4-winners} reports the best-found algorithm per condition, taken as the candidate with the highest final best-so-far AOCC across the 10 seeds. The four winners span only a $0.0031$ AOCC range, and all four are CMA-ES variants: \texttt{IGA\_CMA}, \texttt{BIPOP\_MA\_CMA\_ES}, \texttt{CMA\_EES}, and \texttt{OM\_CMA\_EIS}, each between 95 and 115 lines of code with maximum nesting depth 6. The full source for all four is reproduced in \cref{app:stage4-winners}. The best-performing algorithm of every condition is therefore a CMA-ES variant, regardless of the feedback string Gemini~3 Flash sees. This is an indication of a model bias: when asked for a high-quality black-box optimiser on MA-BBOB, Gemini snaps to CMA-ES even when the feedback explicitly steers toward different behavioural targets. The bias does not necessarily reflect a flaw, since CMA-ES is genuinely state of the art on this class of benchmark; it does, however, mean that the feedback string does not move the model off this default family.
 
-The implication for Stage~4 is that the aggregate AOCC differences between conditions in \cref{sec:results-stage4-agg} cannot be attributed to a richer or more diverse algorithm family under feedback-augmented conditions, since the family is fixed across all four. Differences must instead arise from how reliably each condition steers the search through the CMA-ES design space. Whether the small mean differences observed on the twenty-function set translate to a larger gap on the full $1{,}000$-function MA-BBOB pool (and against an external CMA-ES baseline) is the question the generalisation experiment in \cref{sec:results-stage4-generalisation} addresses.
+Reading the four sources confirms the family bias in detail. Every winner reproduces the canonical Hansen tutorial of CMA-ES: log-decreasing recombination weights, the standard learning-rate constants $c_c, c_s, c_1, c_\mu, d_{\text{amps}}, \chi_n$ verbatim, both evolution paths $p_c$ and $p_s$, the Heaviside $h_\sigma$ indicator, the rank-1 + rank-$\mu$ covariance update, and CSA step-size control. None of the winners replaces, simplifies, or fundamentally re-derives this core; each decorates it with two or three heuristic add-ons.
+
+Three add-ons recur. Mirrored sampling --- antithetic $\pm z$ pairs to halve sampling noise on the mean shift --- appears in all four winners. QR-decomposed orthogonal sampling also appears in all four, applied to a randn matrix and rescaled by $\sqrt{n}$ (low-dim-only in \texttt{BIPOP\_MA\_CMA\_ES}). Active CMA with negative rank-$\mu$ weights appears in two: \texttt{IGA\_CMA}, with an aggressive flat $-0.8$ negative coefficient, and \texttt{BIPOP\_MA\_CMA\_ES}, capped at $0.5\,c_\mu$. The conditions diverge on the remaining heuristic interventions:
+
+\begin{itemize}
+  \item \texttt{IGA\_CMA} (vanilla) wraps the inner CMA in an IPOP-style restart loop that doubles population size on collapse, layered with a DE-style mean-injection step that overrides $x_{\text{mean}}$ on stagnation and a biased re-initialisation that draws the new mean near the running best with probability $0.3$.
+  \item \texttt{BIPOP\_MA\_CMA\_ES} (neutral) scaffolds BIPOP --- alternating between large- and small-population regimes on each restart --- but omits the canonical Hansen 2009 budget accounting that selects the next regime; an unused \texttt{success\_history} list and the absence of any local-search make the ``MA'' (memetic) prefix decorative.
+  \item \texttt{CMA\_EES} (SAGE) adds edge-biased radial scaling on the orthogonal samples (a $\text{Beta}(0.5, 0.5)$ mixed into the $\chi$-scale) and modulo-reflective boundary handling that bounces out-of-bounds points back into the interior. Restart is conservative: only on near-total stagnation, and suppressed past $80\%$ of the FE budget.
+  \item \texttt{OM\_CMA\_EIS} (combined) injects a momentum term --- an exponential moving average of recent mean-shift directions --- into each sample, biasing offspring along the recent successful trajectory. There is no proper restart, only a $1.1\times$ sigma kick when the within-generation fitness range collapses.
+\end{itemize}
+
+Several of the tweaks are also of dubious correctness. The mirrored-and-orthogonalised samples in \texttt{BIPOP\_MA\_CMA\_ES}, \texttt{CMA\_EES}, and \texttt{OM\_CMA\_EIS} break the Gaussian assumption that CSA's expected step-norm $\chi_n$ relies on. Bare \texttt{except} clauses in three of the four winners silently fall back to an identity covariance on numerical failure. Comments routinely advertise techniques the code does not implement (``noise-resilient gradient estimation'', a renamed ``PSA'' that is just standard CSA, ``Constraint-based scaling'' applied to a flat heuristic cap), and the LLM-coined acronyms (``EES'', ``EIS'', the unexplained ``IGA'' prefix) make the algorithms sound more distinct than they are.
+
+The implication for Stage~4 is that the AOCC differences between conditions in \cref{sec:results-stage4-agg} cannot be attributed to a richer or more diverse algorithm family under feedback-augmented conditions. The family is fixed across all four winners; the differences are restricted to which heuristic decorations the LLM bolts onto the same CMA-ES skeleton. Whether the $0.022$--$0.023$ AOCC gap observed on the twenty-function set holds up on the full $1{,}000$-function MA-BBOB pool against an external CMA-ES baseline is the question the generalisation experiment in \cref{sec:results-stage4-generalisation} addresses.
 
 % ---------------------------------------------------------------------------
 \subsection{Full-Suite Generalisation}
 \label{sec:results-stage4-generalisation}
 
-The 20-function set used above is large enough to discriminate condition means at the budget set by 10 seeds, but it is sized to support the head-to-head comparison rather than to estimate generalisation across the full MA-BBOB pool. To position the four winners against the broader benchmark, the best-found algorithm from each condition (\cref{tab:phase4-winners}) plus a CMA-ES~\cite{hansen2001cmaes} baseline are evaluated on all $1{,}000$ MA-BBOB functions $\times$ 5 instance seeds $\times$ \{5, 10, 20\} dimensions under a $2{,}000d$ FE budget, with no LLM in the loop. The total compute is approximately $1.75 \times 10^9$ function evaluations across the five algorithms. Results are pending at the time of writing and will be reported in the final revision.
+The 20-function set used above is large enough to discriminate condition means at the budget set by 10 seeds, but it is sized to support the head-to-head comparison rather than to estimate generalisation across the full MA-BBOB pool. To position the four winners against the broader benchmark, the best-found algorithm from each condition (\cref{tab:phase4-winners}) plus a CMA-ES~\cite{hansen2001cmaes} baseline are evaluated on all $1{,}000$ MA-BBOB functions $\times$ 5 instance seeds $\times$ \{5, 10, 20\} dimensions under a $2{,}000d$ FE budget, with no LLM in the loop. The total compute is approximately $1.75 \times 10^9$ function evaluations across the five algorithms.
+
+\begin{table}[t]
+\centering
+\caption{Mean AOCC per (algorithm, dimensionality) on the full $1{,}000$-instance MA-BBOB pool, averaged over 5 seeds ($5{,}000$ runs per cell). Best entry per dimensionality in bold.}
+\label{tab:phase4-fullsuite-summary}
+\setlength{\tabcolsep}{6pt}
+\begin{tabular}{@{}llccc@{}}
+\toprule
+\textbf{Cond.} & \textbf{Algorithm} & $d=5$ & $d=10$ & $d=20$ \\
+\midrule
+vanilla   & \texttt{IGA\_CMA}            & \textbf{0.848} & 0.798 & 0.730 \\
+neutral   & \texttt{BIPOP\_MA\_CMA\_ES}   & 0.833 & \textbf{0.810} & \textbf{0.745} \\
+sage      & \texttt{CMA\_EES}            & 0.843 & 0.789 & 0.696 \\
+combined  & \texttt{OM\_CMA\_EIS}         & 0.815 & 0.763 & 0.704 \\
+baseline  & CMA-ES~\cite{hansen2001cmaes} & 0.728 & 0.701 & 0.650 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{figure}[t]
+  \centering
+  \includegraphics[width=\textwidth]{figures/fig_phase4_fullsuite_final_aocc.pdf}
+  \caption{Final-AOCC distribution per (algorithm, dimensionality) across all $5{,}000$ runs per cell ($1{,}000$ instances $\times$ 5 seeds). Boxes show inter-quartile range, dark lines the median, whiskers the 1.5 IQR fences. The long lower whiskers reflect the heavy tail of MA-BBOB: a fraction of instances are genuinely hard for every algorithm tested.}
+  \label{fig:phase4-fullsuite-final-aocc}
+\end{figure}
+
+\begin{figure}[t]
+  \centering
+  \includegraphics[width=\textwidth]{figures/fig_phase4_fullsuite_ecdf.pdf}
+  \caption{Empirical attainment-function-based ECDF curves on the full $1{,}000$-instance MA-BBOB pool at $d \in \{5, 10, 20\}$. Each curve aggregates 51 log-spaced fitness targets in $[10^{-8}, 10^2]$ across $5{,}000$ runs per algorithm. The dashed line marks the external CMA-ES baseline; the four LLM-generated variants overlap to within line-width and trail the budget by a stable margin above it.}
+  \label{fig:phase4-fullsuite-ecdf}
+\end{figure}
+
+\Cref{tab:phase4-fullsuite-summary} reports the mean AOCC per (algorithm, dimensionality) cell, with the corresponding distributional view in \cref{fig:phase4-fullsuite-final-aocc}. Three observations follow. First, all four LLM-generated algorithms beat the CMA-ES baseline by a margin of $0.10$--$0.12$ mean AOCC, uniformly across $d \in \{5, 10, 20\}$. The smallest gap, $0.10$ at $d = 20$, is still larger by an order of magnitude than the $0.022$--$0.023$ within-condition spread observed in the head-to-head comparison of \cref{sec:results-stage4-agg}. Second, the ranking within the LLM group is nearly indistinguishable: \texttt{IGA\_CMA} (vanilla) narrowly leads at $d = 5$ at $0.848$, while \texttt{BIPOP\_MA\_CMA\_ES} (neutral) takes the lead at $d = 10$ ($0.810$) and $d = 20$ ($0.745$). The total spread among the four LLM winners is $0.03$--$0.05$ AOCC across the three dimensionalities --- close to the $\pm 0.005$ noise floor implied by the heavy-tailed distributions in \cref{fig:phase4-fullsuite-final-aocc}. Third, the head-to-head winner of \cref{sec:results-stage4-agg} (combined) does not reproduce its lead on the broader benchmark: it ranks fourth at $d = 5$, third at $d = 10$, and second at $d = 20$. The $0.022$--$0.023$ AOCC advantage of the combined condition observed on the twenty-function set therefore does not transfer to the full pool.
+
+\Cref{fig:phase4-fullsuite-ecdf} extends the same observations onto the per-FE attainment dimension. The CMA-ES baseline tracks the LLM variants closely through the early budget but separates from them past $\mathrm{FE}/d \approx 30$, where the LLM variants' final-stage exploitation pays off. The four LLM ECDF curves themselves are visually indistinguishable across all three dimensionalities, consistent with the boxplot view: the within-LLM ranking that \cref{sec:results-stage4-agg} relies on is not stable under generalisation.
+
+The implication for the thesis claims is two-sided. On the one hand, the mainline narrative --- that the LLM-generated CMA-ES variants are good optimisers on this benchmark family --- holds robustly: every winner beats the canonical CMA-ES on the full $1{,}000$-instance pool, at every tested dimensionality, and by a margin that swamps any within-LLM ranking. On the other hand, the per-condition ranking observed in \cref{sec:results-stage4-agg} is not stable when re-evaluated on the broader benchmark: the $0.022$--$0.023$ AOCC gap between vanilla, neutral, sage, and combined that is detectable on twenty functions disappears into the noise floor on $1{,}000$. The feedback string that produced each winner therefore matters for which CMA-ES decoration the LLM bolts on (\cref{sec:results-stage4-winners}), but not measurably for the algorithm's broad-benchmark performance.
