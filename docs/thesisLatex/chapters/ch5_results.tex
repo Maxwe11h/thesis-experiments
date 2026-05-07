@@ -50,13 +50,15 @@ Among open-weight models, performance does not scale with parameter count. Qwen3
 \subsection{Failure Mode Analysis}
 \label{sec:results-failures}
 
-Across all 10 models and 5 seeds, 5{,}000 candidates were generated in total, of which $3{,}071$ or $61.4\%$ produced valid fitness scores. The nature of failures differs systematically between strong and weak models. The top performing Gemini models have the lowest failure rates and predominantly fail due to runtime errors, where the generated code has the correct class interface but contains logic bugs that cause exceptions during evaluation. Weaker models instead produce structural failures, generating standalone functions rather than the required Python class or omitting mandatory constructor parameters.
+Across all 10 models and 5 seeds, 5{,}000 candidates were generated in total, of which $3{,}071$ or $61.4\%$ produced valid fitness scores. To characterise the remaining failures we replay every failed candidate's source through the same gate that BLADE applies at runtime: parse the file, check that imports stay within the allowed \texttt{numpy}-only environment, instantiate the algorithm class with \texttt{(budget=100, dim=2)}, and invoke it once on BBOB function~11 (Discus, $d=2$), with a 10-second per-candidate budget. The result lands in one of five categories: \emph{code generation} (no class is produced, or the file does not parse), \emph{import violation} (the code imports a disallowed package), \emph{interface mismatch} (\texttt{\_\_init\_\_(budget, dim)} or \texttt{\_\_call\_\_(func)} signature mismatch), \emph{runtime error} (compiles and instantiates, but raises during the trial call), and \emph{unclassified}. The same classifier is reused in \cref{sec:results-stage4-failures}, so the two failure-mode figures share categories, colours, and methodology.
+
+The five categories are distributed unevenly across models. Runtime errors are the most common failure mode at 42.1\% of the $1{,}914$ classified events, and they dominate every model that successfully clears the structural gates (Granite-3B, Qwen3.5-4B, Qwen3.5-27B, OLMo-7B, OLMo-32B, and Gemini-3 Pro). Code-generation failures (26.9\%) concentrate sharply on two models: RNJ-1 fails this way in 160 of its 173 failures (92.5\%), never producing a Python class at all, and Qwen3.5-9B contributes 244 further code-generation events, so over three quarters of all such failures come from a pair of models. Import violations (13.3\%) are concentrated in Qwen3.5-4B (96 events) and Devstral-24B (89), models that repeatedly reach for libraries beyond the allowed \texttt{numpy}-only environment. Interface mismatches (10.7\%) spread across the smaller Qwen and Granite models, where \texttt{\_\_init\_\_} or \texttt{\_\_call\_\_} signatures drift from the framework contract. Finally, unclassified failures (7.1\%) concentrate on Gemini-3 Pro (25 of its 51 failures) and Qwen3.5-27B (35 of 205); these models occasionally produce code that fails on specific MA-BBOB instances or dimensions rather than along any of the four structural axes. The two Gemini models retain the lowest overall failure rates, and their failures break down differently: Pro is dominated by runtime and instance-specific failures, whereas Flash fails only ten times in $500$ candidates and never on a structural axis.
 
 
 \begin{figure}[t]
   \centering
   \includegraphics[width=\columnwidth]{figures/fig_failure_modes.pdf}
-  \caption{Failure mode distribution by model. Categories include runtime errors (correct interface, logic bugs), structural failures (no class produced), and import errors.}
+  \caption{Failure mode distribution by model, classified by replaying each failed candidate through the BLADE compile, instantiate, and trial-call pipeline.}
   \label{fig:failure-modes}
 \end{figure}
 
@@ -347,51 +349,58 @@ We test the metric--AOCC association with Spearman rank correlation across the f
 \section{Full-Benchmark Comparison}
 \label{sec:results-stage4}
 
-The Stage~4 dataset contains $16{,}538$ valid candidates produced by Gemini~3 Flash across four feedback conditions (vanilla, neutral-behavioural, SAGE, combined) at 500 candidates per seed and 10 seeds per condition, evaluated on 20 disjoint MA-BBOB functions with five instance seeds each. This section reports the head-to-head comparison: aggregate condition performance, per-instance robustness, failure-rate dynamics, behavioural steering at scale, and the identity of the best-found algorithm in each condition.
+The Stage~4 dataset contains $16{,}538$ valid candidates produced by Gemini~3 Flash across four feedback conditions (vanilla, neutral-behavioural, SAGE, combined) at 500 candidates per seed and 10 seeds per condition, evaluated on 20 disjoint MA-BBOB functions with five instance seeds each. This section reports the head-to-head comparison: aggregate condition performance, failure-rate dynamics, and the identity of the best-found algorithm in each condition.
 
 \begin{figure}[t]
   \centering
   \includegraphics[width=\columnwidth]{figures/fig_phase4_final_aocc.pdf}
-  \caption{Final best-so-far AOCC after 500 candidates, 10 seeds per condition. Box shows quartiles, whisker shows 1.5$\times$IQR, individual seeds plotted as black dots. Red bar marks the per-condition mean.}
+  \caption{Final best-so-far AOCC after 500 candidates, 10 seeds per condition. Box shows quartiles, whisker shows 1.5$\times$IQR, individual seeds plotted as black dots.}
   \label{fig:phase4-final-aocc}
 \end{figure}
 
-\begin{figure}[t]
+\begin{table}[t]
+\centering
+\caption{Final best-so-far AOCC summary statistics across 10 seeds per condition, and per-condition failure rate over all $5{,}000$ candidates per condition.}
+\label{tab:phase4-final-aocc}
+\begin{tabular}{@{}lrrrr@{}}
+\toprule
+\textbf{Condition} & \textbf{Mean} & \textbf{Median} & \textbf{Std} & \textbf{Fail\%} \\
+\midrule
+Vanilla  & 0.9149 & 0.9502 & 0.0475 & 16.8 \\
+Neutral  & 0.9310 & 0.9442 & 0.0359 & 13.9 \\
+SAGE     & 0.9378 & 0.9520 & 0.0379 & 21.0 \\
+Combined & 0.9372 & 0.9375 & 0.0090 & 17.6 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{figure*}[t]
   \centering
-  \includegraphics[width=\columnwidth]{figures/fig_phase4_convergence.pdf}
-  \caption{Best-so-far AOCC across the 500-candidate budget, mean across 10 seeds with 95\% bootstrap CI ribbon ($n_{\text{boot}}{=}1{,}000$).}
+  \includegraphics[width=\textwidth]{figures/fig_phase4_convergence.pdf}
+  \caption{Best-so-far AOCC across the 500-candidate budget, mean $\pm$ 1 std across 10 seeds. (a)~Full AOCC range. (b)~Zoomed to $[0.75, 1.0]$ to resolve between-condition differences.}
   \label{fig:phase4-convergence}
-\end{figure}
+\end{figure*}
 
 % ---------------------------------------------------------------------------
 \subsection{Aggregate Condition Performance}
 \label{sec:results-stage4-agg}
 
-\Cref{fig:phase4-final-aocc} shows the final best-so-far AOCC distribution across 10 seeds per condition. The condition means rank vanilla ($0.915 \pm 0.048$) below neutral ($0.931 \pm 0.036$), SAGE ($0.938 \pm 0.038$), and combined ($0.937 \pm 0.009$). All three feedback-augmented conditions produce a higher mean than vanilla, and the spread shrinks substantially under combined, whose seed-to-seed standard deviation is roughly five times smaller than vanilla's. \Cref{fig:phase4-convergence} visualises this through the convergence trajectories with a 95\% bootstrap CI ribbon. The four conditions begin overlapping over the first $\sim$50 candidates, then separate from generation 100 onward, with the vanilla curve broadening visibly compared to the three feedback-augmented conditions.
+\Cref{fig:phase4-final-aocc} and \cref{tab:phase4-final-aocc} show the final best-so-far AOCC distribution across 10 seeds per condition. All three feedback-augmented conditions produce a higher mean than vanilla. Sorted by mean, vanilla sits lowest at $0.915 \pm 0.048$, followed by neutral at $0.931 \pm 0.036$, combined at $0.937 \pm 0.009$, and SAGE at $0.938 \pm 0.038$. The spread also shrinks substantially under combined, whose seed-to-seed standard deviation is roughly five times smaller than vanilla's.
 
-The Kruskal--Wallis test across the four conditions returns $H = 3.93,\, p = 0.27$, so the means do not differ at $p < 0.05$. The minimum two-tailed $p$-value attainable from a four-group Kruskal--Wallis with $n = 10$ per group is roughly $10^{-3}$, but only when all four distributions are completely separated. With $\Delta\text{AOCC} \le 0.023$ between the worst-performing (vanilla) and best-performing (SAGE) condition means and seed-level standard deviations of $0.04$--$0.05$, the per-seed distributions overlap and the test cannot reject the null. Holm-corrected pairwise Mann--Whitney comparisons return $p \ge 0.23$ for every pair, with the largest unadjusted gap (sage vs combined, $p_{\text{raw}} = 0.038$) inflated to $p_{\text{Holm}} = 0.226$ after correction for six tests. The 10-seed budget improves resolution over Stage~3's 5-seed setup, but the observed condition means stay within the Stage~3 noise floor identified in \cref{sec:results-significance}.
+A more informative view of the same data is the per-seed final AOCC. Vanilla has four seeds finishing below $0.88$. In comparison, only one neutral seed and one SAGE seed land below this threshold, and combined has none. The three feedback-augmented conditions are less likely to produce a seed that ends in poor-performing code, suggesting that additional feedback signals help the LLM escape suboptimal-code attractors that vanilla otherwise gets stuck in.
 
-\begin{figure}[t]
-  \centering
-  \includegraphics[width=\columnwidth]{figures/fig_phase4_budget_threshold.pdf}
-  \caption{Number of generations needed for each seed to reach the vanilla median final AOCC threshold (0.946). Open markers indicate seeds that never reached the threshold within 500 generations.}
-  \label{fig:phase4-budget}
-\end{figure}
-
-A second view of the comparison is the budget-to-threshold metric, which records how many generations each seed needed to reach the vanilla median final AOCC of $0.946$ (\cref{fig:phase4-budget}). The fraction of seeds that ever reach the threshold differs sharply between conditions: SAGE reaches it in $7$ of $10$ seeds, vanilla in $5$ of $10$, neutral in $3$ of $10$, and combined in $2$ of $10$. SAGE also reaches the threshold most consistently, with a median of $216$ generations and a range of $\pm 115$. Vanilla's median of $54$ is the fastest among reaching seeds but is driven by a few quickly-converging seeds, with the remaining seeds plateauing well below the threshold. Combined's high mean ($0.937$) and low variance ($\sigma = 0.009$) mean its seeds cluster tightly near, but mostly below, the threshold.
-
-% ---------------------------------------------------------------------------
-\subsection{Per-Instance Robustness}
-\label{sec:results-stage4-perinstance}
+\Cref{fig:phase4-convergence} traces the best-so-far AOCC across the 500-candidate budget. Within the first 100 generations, vanilla, SAGE, and combined all reach a mean of roughly $0.90$, with neutral lagging at $0.87$. Vanilla's gen-100 mean of $0.901$ already exceeds the $0.862$ that Gemini-3 Flash reached after 100 candidates on the Stage~1 instance subset. From generation 100 onward the trajectories diverge. Vanilla plateaus near $0.91$, while neutral keeps climbing and nearly matches SAGE and combined by the end of the run. The three feedback signals therefore differ more in tempo than in eventual performance, with SAGE and combined acting early and neutral acting gradually.
 
 \begin{figure*}[t]
   \centering
   \includegraphics[width=\textwidth]{figures/fig_phase4_per_instance.pdf}
-  \caption{Per-instance mean AOCC of each condition's best-found algorithm across the 20 MA-BBOB functions in the Stage~4 set. Each cell averages 10 seeds.}
+  \caption{Per-instance mean AOCC of each condition's best-found algorithm across the 20 MA-BBOB functions in the Stage~4 set. Each cell averages 10 seeds; the leading condition for each instance is outlined and bolded.}
   \label{fig:phase4-per-instance}
 \end{figure*}
 
-\Cref{fig:phase4-per-instance} drills the comparison down to per-instance behaviour. For each (condition, seed) we take the final best-so-far candidate's AOCC on each of the 20 MA-BBOB functions and average across the 10 seeds. SAGE and combined dominate on most instances with mean per-instance AOCC above $0.93$. Vanilla shows a few instances where a single seed's best-so-far happens to find a strong algorithm, but the across-seed average lags by 0.02--0.05 on instances such as 22, 166, and 528. The hardest instance for every condition is 203, with means clustered around 0.85--0.89. No instance flips the condition ordering. The vanilla condition is never the strongest on any instance averaged across seeds.
+\Cref{fig:phase4-per-instance} drills the same comparison down to per-instance behaviour, showing the mean AOCC of each condition's best-found algorithm on each of the 20 MA-BBOB functions. The three feedback-augmented conditions split the leaderboard between them: neutral wins on 9 of 20 instances, combined on 6, SAGE on 4, and vanilla on 1. No single condition is uniformly best, but each of the three feedback conditions wins a sizeable share of the benchmark whereas vanilla wins almost none.
+
+To test whether the means separate, we run a Welch one-sided $t$-test of each feedback condition against vanilla. The test returns $p = 0.088$ for combined, $p = 0.126$ for SAGE, and $p = 0.203$ for neutral; under Holm correction across the three pairs no test reaches $\alpha = 0.05$, so the mean lift from feedback sits within sampling noise at the 10-seed budget. The seed-level performance spread, however, is significant. A Levene test for equal variance between vanilla and combined returns $T = 5.57,\, p = 0.030$, confirming that combined's gain over vanilla is a tighter distribution rather than a reliably higher mean.
 
 % ---------------------------------------------------------------------------
 \subsection{Failure-Rate Analysis}
@@ -399,79 +408,23 @@ A second view of the comparison is the budget-to-threshold metric, which records
 
 \begin{figure}[t]
   \centering
-  \includegraphics[width=\columnwidth]{figures/fig_phase4_failure_rates.pdf}
-  \caption{Per-seed failure rate distribution by condition (10 seeds per condition, 500 candidates per seed).}
-  \label{fig:phase4-failures}
+  \includegraphics[width=\columnwidth]{figures/fig_phase4_failure_modes.pdf}
+  \caption{Stage~4 failure-mode breakdown by condition, classified through the same replay procedure used in \cref{fig:failure-modes}.}
+  \label{fig:phase4-failure-modes}
 \end{figure}
 
-\begin{table}[t]
-\centering
-\caption{Stage~4 failure-mode breakdown by condition. Each row sums to the total failed-candidate count for that condition and gives per-mode counts and (in parentheses) percentages. \emph{Unclass.\ success} marks failures whose source code passes the BLADE compile-and-smoke pipeline post-hoc; the row totals therefore agree with the recorded failure counts even though those candidates ran cleanly under retry.}
-\label{tab:phase4-failure-modes}
-\footnotesize
-\setlength{\tabcolsep}{4pt}
-\begin{tabular}{@{}l|rrrrr|r@{}}
-\toprule
-\textbf{Cond.} & \textbf{CodeGen} & \textbf{Import} & \textbf{Iface} & \textbf{Runtime} & \textbf{Unclass.} & \textbf{Tot.} \\
-\midrule
-vanilla   & 9 (1.1)   & 34 (4.1)   & 1 (0.1)   & 710 (84.6) & 85 (10.1) & 839  \\
-neutral   & 23 (3.3)  & 26 (3.7)   & 7 (1.0)   & 620 (89.1) & 20 (2.9)  & 696  \\
-sage      & 8 (0.8)   & 151 (14.4) & 10 (1.0)  & 867 (82.7) & 12 (1.1)  & 1048 \\
-combined  & 16 (1.8)  & 36 (4.1)   & 38 (4.3)  & 770 (87.6) & 19 (2.2)  & 879  \\
-\bottomrule
-\end{tabular}
-\\[0.3em]
-{\scriptsize CodeGen = no class produced or syntax error; Import = disallowed package; Iface = \texttt{\_\_init\_\_(budget, dim)} or \texttt{\_\_call\_\_(func)} signature mismatch; Runtime = exception during the post-hoc smoke test on BBOB f11. The \emph{unclass.} column re-runs the candidate through BLADE's compile-and-smoke pipeline; cases where the smoke test now passes are flagged as unclassified, indicating the original failure was instance- or dim-specific in the full MA-BBOB evaluation rather than reproducible at the smoke-test stage.}
-\end{table}
+The failure rates in Stage~4 are markedly higher than in earlier stages despite no changes the candidate-extraction code or the BLADE evaluation pipeline. Vanilla fails on 16.8\% of candidates, neutral on 13.9\%, SAGE on 21.0\%, and combined on 17.6\%, against the $2.0\%$ rate reported for Gemini-3 Flash in \cref{sec:results-failures} and the 1.5--3.5\% range across formats in \cref{sec:results-format-ordering}.
 
-The Stage~3 failure analysis identified runtime errors as the dominant mode for capable models. Stage~4 reproduces this. Across the four conditions, vanilla fails on 16.8\% of candidates, neutral on 13.9\%, SAGE on 21.0\%, and combined on 17.6\% (Kruskal--Wallis on per-seed failure rates: $H = 3.06,\, p = 0.38$). SAGE's higher failure rate is consistent with the prior observation that its structural advice pushes the LLM toward more elaborate, error-prone code.
-
-To recover the failure category for each event we replay the candidate's source through the same compile-and-smoke pipeline that BLADE uses at runtime, with a 10-second per-candidate timeout to bound infinite loops. \Cref{tab:phase4-failure-modes} reports the breakdown. Runtime errors dominate every condition (between 82.7\% and 89.1\% of failures). The conditions differ on the lower-frequency modes that reflect feedback-driven habits. SAGE produces 14.4\% import-violation failures, more than three times any other condition, as its complexity-oriented advice repeatedly pulls in libraries beyond the allowed \texttt{numpy}-only environment (e.g., \texttt{scipy.optimize}, \texttt{sklearn}). Combined drives interface mismatches to 4.3\%, four times any other condition, suggesting that bundling behavioural and structural advice occasionally leads the LLM to alter the prescribed \texttt{\_\_init\_\_(budget, dim)} or \texttt{\_\_call\_\_(func)} signature in ways that break the framework contract. Vanilla stands out for its high \emph{unclassified-success} rate of 10.1\%, where the smoke replay now compiles and runs but the original phase recorded a failure. These cases correspond to candidates whose error appears in the larger MA-BBOB evaluation (a specific function or instance triggers a numerical edge case) rather than at the BBOB-f11 smoke stage.
+\Cref{fig:phase4-failure-modes} shows the per-condition failure breakdown across the five categories. Runtime errors dominate every condition (between 82.7\% and 89.1\% of failures). The conditions differ on the lower-frequency modes that reflect feedback-driven habits. SAGE produces 14.4\% import-violation failures, more than three times any other condition, as its complexity-oriented advice repeatedly pulls in libraries beyond the allowed \texttt{numpy}-only environment (e.g., \texttt{scipy.optimize}, \texttt{sklearn}). Combined drives interface mismatches to 4.3\%, four times any other condition, suggesting that bundling behavioural and structural advice occasionally leads the LLM to alter the prescribed \texttt{\_\_init\_\_(budget, dim)} or \texttt{\_\_call\_\_(func)} signature in ways that break the framework contract. Vanilla stands out for its high unclassified rate of 10.1\%, suggesting that many of its failures are tied to specific MA-BBOB instances or dimensions rather than to any structural defect.
 
 \begin{figure}[t]
   \centering
   \includegraphics[width=\columnwidth]{figures/fig_phase4_failure_by_gen.pdf}
-  \caption{Failure rate by 100-candidate generation bin, per condition. Failure brittleness compounds over time most strongly under SAGE.}
+  \caption{Failure rate by 100-candidate generation bin, per condition.}
   \label{fig:phase4-failure-bygen}
 \end{figure}
 
-\Cref{fig:phase4-failure-bygen} bins the same failures by generation. SAGE's failure rate climbs from 8.9\% in the first 100 generations to 27.9\% in generations 400--499, more than tripling. Combined climbs more gently from 6.8\% to 23.7\%. Vanilla and neutral oscillate between 12\% and 22\% with no clear trend. The compounding pattern under SAGE is consistent with its mechanism: structural advice accumulates archive entries each generation, and as the prompt grows the LLM is increasingly nudged into elaborate code paths that fail to satisfy the simulation environment.
-
-% ---------------------------------------------------------------------------
-\subsection{Behavioural Profiles and Steering}
-\label{sec:results-stage4-steering}
-
-\begin{figure*}[t]
-  \centering
-  \includegraphics[width=\textwidth]{figures/fig_phase4_behavioural.pdf}
-  \caption{Distribution of the five tracked behavioural features across all valid Stage~4 candidates by condition. Each violin spans the full per-condition distribution; black bars mark the median. The five features are those carried forward from Stage~3 (\cref{sec:meth-stage4}).}
-  \label{fig:phase4-behavioural}
-\end{figure*}
-
-\begin{table}[t]
-\centering
-\caption{Per-feature behavioural steering rate. Each cell reports the fraction of valid candidates in the listed condition whose feature value lies on the advised side of vanilla's median (Stage~1 advised direction in parentheses). Bold marks rates above 60\%; italicised values below 50\% indicate the condition steers \emph{away} from the advised direction.}
-\label{tab:phase4-steering-rates}
-\footnotesize
-\setlength{\tabcolsep}{4pt}
-\begin{tabular}{@{}l|rrr@{}}
-\toprule
-\textbf{Feature (advised)} & \textbf{Neutral} & \textbf{SAGE} & \textbf{Combined} \\
-\midrule
-intensification\_ratio ($\uparrow$)  & 51.9             & 58.3             & \textbf{69.3} \\
-fitness\_plateau\_fraction ($\uparrow$) & \textit{44.2} & \textbf{62.1}    & \textbf{66.5} \\
-impr\_spatial\_correlation ($\uparrow$) & \textit{46.3} & 58.2             & 58.4 \\
-dim\_conv\_heterogeneity ($\uparrow$)   & 54.4          & \textit{43.4}    & \textit{30.3} \\
-avg\_improvement ($\downarrow$)         & \textit{41.9} & \textit{40.9}    & \textit{34.5} \\
-\bottomrule
-\end{tabular}
-\end{table}
-
-\Cref{fig:phase4-behavioural} shows the distribution of the five tracked behavioural features across all valid candidates, by condition. Combined produces the most concentrated distributions on \texttt{intensification\_ratio} and \texttt{fitness\_plateau\_fraction}, the two features most strongly linked to high AOCC in the Stage~1 analysis. SAGE's distributions track combined closely on these two features, and both lie above neutral and vanilla. \texttt{dim\_conv\_heterogeneity} shows the opposite pattern: combined's distribution is the lowest of the four conditions, despite higher being advised.
-
-To quantify steering directly we compute, for each (feature, condition) pair, the percentage of candidates whose feature value lies on the advised side of vanilla's median. \Cref{tab:phase4-steering-rates} reports the rates. Combined steers strongest on \texttt{intensification\_ratio} ($69.3\%$), \texttt{fitness\_plateau\_fraction} ($66.5\%$), and \texttt{impr\_spatial\_correlation} ($58.4\%$). SAGE achieves comparable rates on those three features without seeing them in its prompt, since SAGE's structural advice is correlated with code patterns that produce intensified, plateau-rich trajectories~\cite{vanStein2026LLaMEASAGE}. Neutral, despite explicitly receiving these features as feedback, lands only slightly above $50\%$ on intensification ($51.9\%$) and \emph{below} $50\%$ on plateau ($44.2\%$) and spatial correlation ($46.3\%$).
-
-Two failures of steering stand out. First, every condition steers in the wrong direction on \texttt{avg\_improvement}. Lower values are advised because they indicate the algorithm has already exhausted easy gains, but combined ($34.5\%$), SAGE ($40.9\%$), and neutral ($41.9\%$) all sit below $50\%$. Second, combined drives \texttt{dim\_conv\_heterogeneity} dramatically away from advised ($30.3\%$, with SAGE at $43.4\%$). Both features had moderate-to-strong correlations with AOCC in Stage~1 but suffered the largest correlation drift to Stage~3 (\cref{tab:correlation-shift}); the Stage~4 steering pattern is consistent with the Stage~3 result that prescriptive advice loses traction when the underlying signal weakens between the calibration and deployment populations. The pattern reinforces the Stage~3 sub-finding that correctly reporting a feature does not guarantee the LLM moves it as advised, especially for features whose signal is weak or non-monotonic in the deployed population.
+\Cref{fig:phase4-failure-bygen} bins the same failures by generation and offers an explanation for why Stage~4's overall rates run so far above Stages~1 and~3. Over the first 100 candidates the failure rate is slightly elevated but still low, 6.8\% for combined, 8.2\% for neutral, 8.9\% for SAGE, and 13.7\% for vanilla. Beyond the 100-candidate mark every condition fails substantially more often. Vanilla settles between 14.7\% and 22.0\%, neutral between 12.1\% and 18.7\%, SAGE climbs from 12.8\% in 100--199 to 27.9\% in 400--499, and combined from 16.8\% to 23.7\%. The elevated Stage~4 totals therefore reflect a compounding effect that the longer 500-candidate budget exposes, not a change in the prompt or the candidate pipeline.
 
 % ---------------------------------------------------------------------------
 \subsection{Best-Found Algorithm Identity}
@@ -495,26 +448,28 @@ combined & \texttt{OM\_CMA\_EIS}       & 7 & 0.9524 &  95 & 6 \\
 \end{tabular}
 \end{table}
 
-\Cref{tab:phase4-winners} reports the best-found algorithm per condition, taken as the candidate with the highest final best-so-far AOCC across the 10 seeds. The four winners span only a $0.0031$ AOCC range, and all four are CMA-ES variants: \texttt{IGA\_CMA}, \texttt{BIPOP\_MA\_CMA\_ES}, \texttt{CMA\_EES}, and \texttt{OM\_CMA\_EIS}, each between 95 and 115 lines of code with maximum nesting depth 6. The full source for all four is reproduced in \cref{app:stage4-winners}. The best-performing algorithm of every condition is therefore a CMA-ES variant, regardless of the feedback string Gemini~3 Flash sees. This is an indication of a model bias: when asked for a high-quality black-box optimiser on MA-BBOB, Gemini snaps to CMA-ES even when the feedback explicitly steers toward different behavioural targets. The bias does not necessarily reflect a flaw, since CMA-ES is genuinely state of the art on this class of benchmark; it does, however, mean that the feedback string does not move the model off this default family.
+\Cref{tab:phase4-winners} reports the best-found algorithm per condition, taken as the candidate with the highest final best-so-far AOCC across the 10 seeds. The four winners (\texttt{IGA\_CMA}, \texttt{BIPOP\_MA\_CMA\_ES}, \texttt{CMA\_EES}, and \texttt{OM\_CMA\_EIS}) span only a $0.0031$ AOCC range, are each between 95 and 115 lines of code, and have a maximum nesting depth 6. The full source for all four is available in the project repository.\footnote{\url{https://github.com/Maxwe11h/thesis-experiments/tree/main/docs/stage4_winners}} The best-performing algorithm of every condition is a CMA-ES variant, regardless of the feedback string Gemini~3 Flash sees. This is an indication of bias inherent to the model but does not necessarily reflect a flaw, since CMA-ES is genuinely state of the art on this class of benchmark.
 
-Reading the four sources confirms the family bias in detail. Every winner reproduces the canonical Hansen tutorial of CMA-ES: log-decreasing recombination weights, the standard learning-rate constants $c_c, c_s, c_1, c_\mu, d_{\text{amps}}, \chi_n$ verbatim, both evolution paths $p_c$ and $p_s$, the Heaviside $h_\sigma$ indicator, the rank-1 + rank-$\mu$ covariance update, and CSA step-size control. None of the winners replaces, simplifies, or fundamentally re-derives this core; each decorates it with two or three heuristic add-ons.
+Reading the four sources confirms the family bias in detail. Every winner contains all the canonical CMA-ES mechanisms. These are log-decreasing recombination weights, the standard learning-rate constants $c_c, c_s, c_1, c_\mu, d_{\text{amps}}, \chi_n$ verbatim, both evolution paths $p_c$ and $p_s$, the Heaviside $h_\sigma$ indicator, the rank-1 + rank-$\mu$ covariance update, and CSA step-size control. None of the winners replaces, simplifies, or fundamentally re-derives this core; each decorates it with two or three heuristic add-ons.
 
-Three add-ons recur. Mirrored sampling --- antithetic $\pm z$ pairs to halve sampling noise on the mean shift --- appears in all four winners. QR-decomposed orthogonal sampling also appears in all four, applied to a randn matrix and rescaled by $\sqrt{n}$ (low-dim-only in \texttt{BIPOP\_MA\_CMA\_ES}). Active CMA with negative rank-$\mu$ weights appears in two: \texttt{IGA\_CMA}, with an aggressive flat $-0.8$ negative coefficient, and \texttt{BIPOP\_MA\_CMA\_ES}, capped at $0.5\,c_\mu$. The conditions diverge on the remaining heuristic interventions:
+Three add-ons recur. Mirrored sampling (antithetic $\pm z$ pairs to halve sampling noise on the mean shift) appears in all four winners. QR-decomposed orthogonal sampling also appears in all four, applied to a randn matrix and rescaled by $\sqrt{n}$ (low-dim-only in \texttt{BIPOP\_MA\_CMA\_ES}). Active CMA with negative rank-$\mu$ weights appears in only two of the four. \texttt{IGA\_CMA} uses an aggressive flat $-0.8$ negative coefficient; \texttt{BIPOP\_MA\_CMA\_ES} caps it at $0.5\,c_\mu$. The conditions diverge on the remaining heuristic interventions:
 
 \begin{itemize}
-  \item \texttt{IGA\_CMA} (vanilla) wraps the inner CMA in an IPOP-style restart loop that doubles population size on collapse, layered with a DE-style mean-injection step that overrides $x_{\text{mean}}$ on stagnation and a biased re-initialisation that draws the new mean near the running best with probability $0.3$.
-  \item \texttt{BIPOP\_MA\_CMA\_ES} (neutral) scaffolds BIPOP --- alternating between large- and small-population regimes on each restart --- but omits the canonical Hansen 2009 budget accounting that selects the next regime; an unused \texttt{success\_history} list and the absence of any local-search make the ``MA'' (memetic) prefix decorative.
-  \item \texttt{CMA\_EES} (SAGE) adds edge-biased radial scaling on the orthogonal samples (a $\text{Beta}(0.5, 0.5)$ mixed into the $\chi$-scale) and modulo-reflective boundary handling that bounces out-of-bounds points back into the interior. Restart is conservative: only on near-total stagnation, and suppressed past $80\%$ of the FE budget.
-  \item \texttt{OM\_CMA\_EIS} (combined) injects a momentum term --- an exponential moving average of recent mean-shift directions --- into each sample, biasing offspring along the recent successful trajectory. There is no proper restart, only a $1.1\times$ sigma kick when the within-generation fitness range collapses.
+  \item \texttt{IGA\_CMA} (vanilla) wraps the inner CMA in an IPOP-style restart loop that doubles the population size on collapse. A DE-style mean-injection step overrides $x_{\text{mean}}$ on stagnation. Biased re-initialisation draws the new mean near the running best with probability $0.3$.
+  \item \texttt{BIPOP\_MA\_CMA\_ES} (neutral) scaffolds BIPOP, alternating between large- and small-population regimes on each restart. The budget accounting that normally selects the next regime is omitted. An unused \texttt{success\_history} list and the absence of any local-search make the ``MA'' (memetic) prefix decorative.
+  \item \texttt{CMA\_EES} (SAGE) adds edge-biased radial scaling on the orthogonal samples (a $\text{Beta}(0.5, 0.5)$ mixed into the $\chi$-scale). Modulo-reflective boundary handling bounces out-of-bounds points back into the interior. Restart is conservative. It fires only on near-total stagnation and is suppressed past $80\%$ of the FE budget.
+  \item \texttt{OM\_CMA\_EIS} (combined) injects a momentum term, formed as an exponential moving average of recent mean-shift directions, into each sample. This biases offspring along the recent successful trajectory. There is no proper restart, only a $1.1\times$ sigma kick when the within-generation fitness range collapses.
 \end{itemize}
 
-Several of the tweaks are also of dubious correctness. The mirrored-and-orthogonalised samples in \texttt{BIPOP\_MA\_CMA\_ES}, \texttt{CMA\_EES}, and \texttt{OM\_CMA\_EIS} break the Gaussian assumption that CSA's expected step-norm $\chi_n$ relies on. Bare \texttt{except} clauses in three of the four winners silently fall back to an identity covariance on numerical failure. Comments routinely advertise techniques the code does not implement (``noise-resilient gradient estimation'', a renamed ``PSA'' that is just standard CSA, ``Constraint-based scaling'' applied to a flat heuristic cap), and the LLM-coined acronyms (``EES'', ``EIS'', the unexplained ``IGA'' prefix) make the algorithms sound more distinct than they are. The AOCC differences between conditions in \cref{sec:results-stage4-agg} therefore cannot be attributed to a richer or more diverse algorithm family under feedback-augmented conditions; the family is fixed across all four winners, and the differences are restricted to which heuristic decorations the LLM bolts onto the same CMA-ES skeleton.
+A close reading of the four sources also surfaces several patches of code that appear to be functionally inert or technically inconsistent. The mirrored-and-orthogonalised samples in \texttt{BIPOP\_MA\_CMA\_ES}, \texttt{CMA\_EES}, and \texttt{OM\_CMA\_EIS} break the Gaussian assumption that CSA's expected step-norm $\chi_n$ relies on. Bare \texttt{except} clauses in three of the four winners silently fall back to an identity covariance on numerical failure. Comments routinely advertise techniques the code does not implement. A ``noise-resilient gradient estimation'' is named but never coded, a renamed ``PSA'' is just standard CSA, and ``Constraint-based scaling'' is applied to a flat heuristic cap. The LLM-coined acronyms ``EES'', ``EIS'', and the unexplained ``IGA'' prefix make the algorithms sound more distinct than they are.
+
+Beneath these tweaks and labels, every condition runs the same canonical CMA-ES. Feedback shapes the surface heuristics and rhetoric of the winning algorithms but does not move the model off this default. In this experimental design, behavioural feedback shapes appearance and improves final convergence but not identity.
 
 % ---------------------------------------------------------------------------
 \subsection{Full-Suite Generalisation}
 \label{sec:results-stage4-generalisation}
 
-The 20-function set used above is large enough to discriminate condition means at the budget set by 10 seeds, but it is sized to support the head-to-head comparison rather than to either estimate generalisation across the full MA-BBOB pool or validate that the neutral and combined feedback methodologies produce algorithms that hold up beyond their training conditions. To position the four winners against the broader benchmark, the best-found algorithm from each condition (\cref{tab:phase4-winners}) plus a CMA-ES~\cite{hansen2001cmaes} baseline are evaluated on all $1{,}000$ MA-BBOB functions $\times$ 5 instance seeds $\times$ \{5, 10, 20\} dimensions under a $2{,}000d$ FE budget, with no LLM in the loop. The total compute is approximately $1.75 \times 10^9$ function evaluations across the five algorithms.
+To position the four winners against a broader benchmark, the best-found algorithm from each condition (\cref{tab:phase4-winners}) is re-evaluated against a CMA-ES~\cite{hansen2001cmaes} baseline, with no LLM in the loop. Each of the five algorithms runs on all $1{,}000$ MA-BBOB functions across 5 instance seeds and three dimensionalities $d \in \{5, 10, 20\}$, under a $2{,}000d$ FE budget per run. The total compute is approximately $1.75 \times 10^9$ FEs across the five algorithms.
 
 \begin{table}[t]
 \centering
@@ -541,8 +496,4 @@ baseline  & CMA-ES~\cite{hansen2001cmaes} & 0.728 & 0.701 & 0.650 \\
   \label{fig:phase4-fullsuite-ecdf}
 \end{figure*}
 
-\Cref{tab:phase4-fullsuite-summary} reports the mean AOCC per (algorithm, dimensionality) cell. Three observations follow. First, all four LLM-generated algorithms beat the CMA-ES baseline by a margin of $0.10$--$0.12$ mean AOCC, uniformly across $d \in \{5, 10, 20\}$. The smallest gap, $0.10$ at $d = 20$, is still larger by an order of magnitude than the $0.022$--$0.023$ within-condition spread observed in the head-to-head comparison of \cref{sec:results-stage4-agg}. Second, the ranking within the LLM group is nearly indistinguishable: \texttt{IGA\_CMA} (vanilla) narrowly leads at $d = 5$ at $0.848$, while \texttt{BIPOP\_MA\_CMA\_ES} (neutral) takes the lead at $d = 10$ ($0.810$) and $d = 20$ ($0.745$). The total spread among the four LLM winners is $0.03$--$0.05$ AOCC across the three dimensionalities --- close to the noise floor implied by the heavy-tailed per-instance AOCC distributions. Third, the head-to-head winner of \cref{sec:results-stage4-agg} (combined) does not reproduce its lead on the broader benchmark: it ranks fourth at $d = 5$, third at $d = 10$, and second at $d = 20$. The $0.022$--$0.023$ AOCC advantage of the combined condition observed on the twenty-function set therefore does not transfer to the full pool.
-
-\Cref{fig:phase4-fullsuite-ecdf} extends the same observations onto the per-FE attainment dimension. The CMA-ES baseline tracks the LLM variants closely through the early budget but separates from them past the mid-budget mark, where the LLM variants' final-stage exploitation pays off. The four LLM ECDF curves themselves are visually indistinguishable across all three dimensionalities: the within-LLM ranking that \cref{sec:results-stage4-agg} relies on is not stable under generalisation.
-
-The implication for the thesis claims is two-sided. On the one hand, the mainline narrative --- that the LLM-generated CMA-ES variants are good optimisers on this benchmark family --- holds robustly: every winner beats the canonical CMA-ES on the full $1{,}000$-instance pool, at every tested dimensionality, and by a margin that swamps any within-LLM ranking. On the other hand, the per-condition ranking observed in \cref{sec:results-stage4-agg} is not stable when re-evaluated on the broader benchmark: the $0.022$--$0.023$ AOCC gap between vanilla, neutral, sage, and combined that is detectable on twenty functions disappears into the noise floor on $1{,}000$. The feedback string that produced each winner therefore matters for which CMA-ES decoration the LLM bolts on (\cref{sec:results-stage4-winners}), but not measurably for the algorithm's broad-benchmark performance.
+\Cref{tab:phase4-fullsuite-summary} reports the mean AOCC per (algorithm, dimensionality) cell. All four LLM-generated algorithms beat the CMA-ES baseline across $d \in \{5, 10, 20\}$. In the empirical attainment function (\cref{fig:phase4-fullsuite-ecdf}), the CMA-ES baseline diverges downward from the LLM variants before $2{,}000$ evaluations and plateaus earliest. \texttt{OM\_CMA\_EIS} (combined) also plateaus, while the other three variants continue improving until the end of the FE budget. \texttt{IGA\_CMA} (vanilla) narrowly leads at $d = 5$ at $0.848$, while \texttt{BIPOP\_MA\_CMA\_ES} (neutral) takes the lead at $d = 10$ ($0.810$) and $d = 20$ ($0.745$). These results validate the neutral feedback format as a viable design for producing high-quality metaheuristics with code-generating LLMs, with its winner leading at the two larger dimensionalities and remaining within $0.015$ AOCC of the leader at $d=5$.

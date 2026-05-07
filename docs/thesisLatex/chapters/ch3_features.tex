@@ -6,18 +6,9 @@
 \chapter{Behavioural Feature Design}
 \label{ch:features}
 
-This section presents the 32 behavioural features used to characterise algorithm
-trajectories.  Eleven features are inherited from the BLADE framework
-\cite{vanStein2025BLADE, vanStein2025Behaviour}. The remaining 21 are introduced
-by this thesis.  Of those 21, six are entirely novel metrics that have not
-appeared in prior optimisation literature.  These novel features constitute a
-central contribution of this work. They capture aspects of search dynamics (momentum, burstiness, plateau structure, and dimensional heterogeneity) that existing metrics overlook.
+This chapter defines the behavioural feature vocabulary used throughout the thesis. \Cref{sec:features:principles} states the criteria that guided feature design and selection. The remaining sections present the 32 resulting features, organised by origin: inherited metrics, step-size and movement dynamics, information-theoretic measures, adapted population dynamics, and features new to the optimisation literature.
 
-Every feature is computed from a single trajectory. A trajectory is represented by a DataFrame of $T = 10{,}000$
-function evaluations in $d = 5$ dimensions with bounds $[-5, 5]$.  Columns
-consist of the evaluation index, the raw objective value~$y_t$, and the decision
-variables $x_t^{(0)}, \ldots, x_t^{(d-1)}$.  We denote the best-so-far fitness
-at evaluation~$t$ as $f^*_t = \min_{s \le t} y_s$.
+Every feature is computed from a single trajectory, the ordered sequence of candidate solutions that an algorithm evaluates together with their fitness values. Formally, a trajectory is a sequence $\{(x_t, y_t)\}_{t=1}^{T}$ where $x_t \in \mathbb{R}^d$ is the $t$-th candidate solution with decision variables $x_t^{(0)}, \ldots, x_t^{(d-1)}$, and $y_t = \mathcal{F}(x_t)$ is its fitness. The best-so-far fitness at evaluation~$t$ is denoted $f^*_t = \min_{s \le t} y_s$. Throughout this thesis, trajectories are collected over $T = 2{,}000 \times d$ evaluations in $d = 5$ dimensions with bounds $[-5, 5]$, giving $T = 10{,}000$ evaluations per trajectory.
 
 % ============================================================================
 \section{Design Principles}
@@ -26,11 +17,11 @@ at evaluation~$t$ as $f^*_t = \min_{s \le t} y_s$.
 Four criteria guided the selection and design of behavioural features.
 
 \begin{enumerate}
-  \item \textbf{Computational cheapness.} Feature extraction must not dominate experiment runtime. A single MA-BBOB evaluation already costs 30--120\,s (running the candidate algorithm 50 times across 10 problems with 5 instances each). Behavioural features should add at most a small fraction of that budget.
+  \item \textbf{Computational cheapness.} MA-BBOB evaluations already carry the bulk of experiment runtime. Behavioural features should add only a small fraction of additional expense.
 
-  \item \textbf{Distinctness.} Each feature should capture a dimension of behaviour not already covered by other features. We enforce this during feature selection by removing any feature whose Pearson correlation with a higher-ranked feature exceeds $|\rho| > 0.8$.
+  \item \textbf{Distinctness.} Each feature should capture a dimension of behaviour not already covered by other features.
 
-  \item \textbf{Interpretability for LLM feedback.} Features are reported to the language model as part of the behavioural feedback string. They must therefore carry clear, concise semantics that an LLM can act on. For instance, \emph{``your step sizes are erratic''} is actionable, while \emph{``your Lempel--Ziv complexity is 0.73''} is not, unless accompanied by a description.
+  \item \textbf{Interpretability for LLM feedback.} Features are reported to the language model as part of the behavioural feedback string. They must therefore carry clear, concise semantics that an LLM can act on.
 
   \item \textbf{Discrimination.} Features should separate high-performing from low-performing algorithms. We quantify this via Spearman correlation ~\cite{spearman1904proof} with AOCC and Kolmogorov--Smirnov effect size ~\cite{kolmogorov1933} between the top-25\% and bottom-25\% candidates.
 \end{enumerate}
@@ -39,49 +30,136 @@ Four criteria guided the selection and design of behavioural features.
 \section{Existing BLADE Metrics}
 \label{sec:features:blade}
 
-BLADE ships with eleven behavioural metrics introduced by van~Stein et
-al.~\cite{vanStein2025Behaviour, vanStein2025BLADE}. We summarise them here and
-refer the reader to the original work for formal definitions.  The metrics fall
-into four functional categories.
+BLADE~\cite{vanStein2025BLADE} ships with eleven behavioural metrics introduced by van~Stein et al.~\cite{vanStein2025Behaviour}. They fall into four functional categories covering exploration and diversity, exploitation and intensification, convergence, and stagnation. We define each metric formally below, using the trajectory notation from the start of the chapter.
 
-\paragraph{Exploration and diversity.}
-\begin{itemize}
-  \item \texttt{avg\_nearest\_neighbor\_distance}: mean Euclidean distance between consecutive evaluated points, quantifying how much new territory the search covers at each step.
-  \item \texttt{dispersion}: maximum gap in search-space coverage via KD-tree. Large values indicate unvisited regions.
-  \item \texttt{avg\_exploration\_pct}: chunk-based measure of
-  within-chunk variance relative to a random baseline.
-\end{itemize}
+\paragraph{\texttt{avg\_nearest\_neighbor\_distance}.}
+For each evaluation $x_k$ (sampled every tenth step for efficiency), the Euclidean distance to its nearest neighbour among the $H = 1{,}000$ most recent prior evaluations:
+\begin{equation}
+\label{eq:avg_nn_dist}
+  \text{ANN} = \frac{1}{|\mathcal{K}|} \sum_{k \in \mathcal{K}} \min_{\max(0,\, k-H) \le j < k} \lVert x_k - x_j \rVert,
+\end{equation}
+where $\mathcal{K} = \{1, 11, 21, \ldots\}$. Large values indicate the search covers new territory at each step. Small values indicate repeated returns to previously visited regions.
 
-\paragraph{Exploitation and intensification.}
-\begin{itemize}
-  \item \texttt{avg\_distance\_to\_best}: mean distance from each evaluation to the best-so-far solution.
-  \item \texttt{intensification\_ratio}: fraction of evaluations within a fixed radius of the final best solution. High values indicate strong local exploitation.
-  \item \texttt{avg\_exploitation\_pct}: complement of
-  \texttt{avg\_exploration\_pct}, measuring the fraction of
-  within-chunk variance attributable to local refinement.
-\end{itemize}
+\paragraph{\texttt{dispersion}.}
+The radius of the largest empty hypersphere that fits inside $\mathcal{S}$ without containing any evaluated point:
+\begin{equation}
+\label{eq:dispersion_formal}
+  \mathrm{disp}(X) = \sup_{y \in \mathcal{S}} \min_{1 \le t \le T} \lVert y - x_t \rVert_2.
+\end{equation}
+In practice the supremum is approximated by drawing $N = 10{,}000$ points $z_i$ uniformly from $\mathcal{S}$ and computing
+\begin{equation}
+\label{eq:dispersion}
+  \widehat{\mathrm{disp}}(X) = \max_{1 \le i \le N} \min_{1 \le t \le T} \lVert z_i - x_t \rVert_2,
+\end{equation}
+with nearest-neighbour queries accelerated by a KD-tree. Large values indicate that large regions of $\mathcal{S}$ remain unvisited. Lower values signal better search-space coverage.
 
-\paragraph{Convergence.}
-\begin{itemize}
-  \item \texttt{average\_convergence\_rate}: geometric mean of successive best-so-far error ratios.
-  \item \texttt{avg\_improvement}: mean fitness gain on steps that update the best-so-far.
-  \item \texttt{success\_rate}: fraction of all evaluations that improve the best-so-far.
-\end{itemize}
+\paragraph{\texttt{avg\_exploration\_pct}.}
+For any finite set $S \subset \mathbb{R}^d$, the average pairwise Euclidean distance is
+\begin{equation}
+\label{eq:pairwise_dist}
+  D(S) = \frac{2}{|S|(|S|-1)} \sum_{\substack{p < q \\ x_p, x_q \in S}} \lVert x_p - x_q \rVert_2.
+\end{equation}
+With axis widths $w_k = u_k - l_k$ and mean width $\bar{w} = \frac{1}{d}\sum_{k=1}^d w_k$, the expected pairwise distance of two i.i.d.\ uniform samples in $\mathcal{S}$ is approximated by
+\begin{equation}
+\label{eq:rand_div}
+  D_{\mathrm{rand}} = \bar{w} \sqrt{d/6}.
+\end{equation}
+The trace $X$ is partitioned into $C$ consecutive chunks $S_0, \ldots, S_{C-1}$ of size $K = 500$, and each chunk is scored relative to random search:
+\begin{equation}
+\label{eq:chunk_exploration}
+  E_c = \min\!\left\{100 \cdot \frac{D(S_c)}{D_{\mathrm{rand}}},\, 100\right\} \quad (0 \le E_c \le 100).
+\end{equation}
+The average exploration percentage is the mean across chunks:
+\begin{equation}
+\label{eq:avg_expl_pct}
+  \bar{E} = \frac{1}{C} \sum_{c=0}^{C-1} E_c.
+\end{equation}
+Values near 100 indicate chunk-level diversity on par with random search. Values near 0 indicate concentrated, exploitative search.
 
-\paragraph{Stagnation.}
-\begin{itemize}
-  \item \texttt{longest\_no\_improvement\_streak}: length of the longest consecutive run without best-so-far improvement. Streaks of several thousand out of $T = 10{,}000$ indicate the algorithm has effectively stopped progressing.
-  \item \texttt{last\_improvement\_fraction}: how late in the budget the final improvement occurs, normalised to $[0, 1]$.
-\end{itemize}
+\paragraph{\texttt{avg\_distance\_to\_best}.}
+Let $b^*(k) = \arg\min_{t \le k} y_t$ denote the index of the best-so-far point at evaluation $k$. The mean distance from each evaluation to the best-so-far incumbent:
+\begin{equation}
+\label{eq:avg_dist_best}
+  \bar{\Delta} = \frac{1}{T-1} \sum_{k=1}^{T-1} \lVert x_k - x_{b^*(k)} \rVert.
+\end{equation}
+Low values indicate strong local exploitation around the incumbent.
+
+\paragraph{\texttt{intensification\_ratio}.}
+The fraction of evaluations within a radius $r = 0.1 \cdot \bar{w}$ of the final best point $x^* = \arg\min_{t} y_t$:
+\begin{equation}
+\label{eq:intensification}
+  I = \frac{1}{T} \sum_{t=1}^{T} \mathbf{1}\!\left[\lVert x_t - x^* \rVert < r\right].
+\end{equation}
+High values indicate strong exploitation near the eventual best solution.
+
+\paragraph{\texttt{avg\_exploitation\_pct}.}
+The complement of the exploration percentage:
+\begin{equation}
+\label{eq:avg_exploit_pct}
+  \bar{X} = 100 - \bar{E}.
+\end{equation}
+It captures the share of chunk-level variance attributable to local refinement.
+
+\paragraph{\texttt{average\_convergence\_rate}.}
+Let $e_t = f^*_t - f^*_T$ be the error of the best-so-far above the final best, and $\varepsilon$ machine epsilon (added to avoid division by zero). The geometric mean of successive error ratios:
+\begin{equation}
+\label{eq:acr}
+  \text{ACR} = \exp\!\left( \frac{1}{T-1} \sum_{t=1}^{T-1} \log \frac{e_{t+1} + \varepsilon}{e_t + \varepsilon} \right).
+\end{equation}
+$\text{ACR} < 1$ indicates convergence. Smaller values indicate faster convergence.
+
+\paragraph{\texttt{avg\_improvement}.}
+Let $\mathcal{I} = \{t : y_t < f^*_{t-1}\}$ be the set of improving iterations. The mean improvement magnitude over those iterations:
+\begin{equation}
+\label{eq:avg_imp}
+  \bar{I} = \frac{1}{|\mathcal{I}|} \sum_{t \in \mathcal{I}} \bigl(f^*_{t-1} - y_t\bigr).
+\end{equation}
+Large values indicate the algorithm makes substantial gains when it improves. Small values indicate refinement in small increments.
+
+\paragraph{\texttt{success\_rate}.}
+The fraction of iterations that improve the best-so-far:
+\begin{equation}
+\label{eq:success_rate}
+  S = \frac{|\mathcal{I}|}{T - 1}.
+\end{equation}
+High values indicate the algorithm frequently finds better solutions, which may reflect either an easy problem or effective search steps. Low values indicate the algorithm struggles to improve on the incumbent.
+
+\paragraph{\texttt{longest\_no\_improvement\_streak}.}
+The length of the longest contiguous run of iterations that do not improve the best-so-far:
+\begin{equation}
+\label{eq:longest_no_imp}
+  L = \max \bigl\{b - a + 1 : y_t \ge f^*_{t-1} \text{ for all } t \in [a, b]\bigr\}.
+\end{equation}
+Streaks of several thousand out of $T = 10{,}000$ indicate the algorithm has effectively stopped progressing.
+
+\paragraph{\texttt{last\_improvement\_fraction}.}
+Let $t^* = \max \mathcal{I}$ be the index of the last improving iteration. The fraction of the budget that elapses after it:
+\begin{equation}
+\label{eq:last_imp_frac}
+  \Phi = \frac{T - 1 - t^*}{T - 1}.
+\end{equation}
+High values indicate the algorithm plateaued early and made no further progress. Low values indicate it continued improving until near the end.
 
 % ============================================================================
 \section{Step-Size and Movement Dynamics}
 \label{sec:features:stepsize}
 
-The first group of new features characterises the basic mechanics of how a
-candidate algorithm moves through decision space.  All four are standard
-trajectory analysis measures catalogued in the meta-feature survey by Cenikj et
-al ~\cite{cenikj2026features}. Let $s_t = \lVert x_{t+1} - x_t \rVert$ denote the Euclidean step size at
+The first group of new features characterises the basic mechanics of how
+a candidate algorithm moves through decision space.  Step-size statistics
+(mean, standard deviation, OLS slope) and directional persistence are
+basic trajectory descriptors.  Step-size statistics in particular are
+common in time-series feature libraries such as
+\texttt{tsfresh}~\cite{christ2018tsfresh}, and de~Nobel et
+al.~\cite{deNobel2021tsfresh} applied \texttt{tsfresh} to CMA-ES internal
+strategy parameters (step-size $\sigma$, evolution paths)---though
+notably none of the simple statistics over $\sigma$ that they considered
+were retained by their feature selector.  We compute analogous statistics
+directly on Euclidean step magnitudes $\lVert x_{t+1} - x_t \rVert$ from
+the trajectory, which is algorithm-agnostic rather than CMA-ES-specific.
+Directional persistence---the mean cosine similarity between consecutive
+displacement vectors---is a standard descriptor in random-walk and
+movement-ecology analyses~\cite{codling2008randomwalk}.  Let
+$s_t = \lVert x_{t+1} - x_t \rVert$ denote the Euclidean step size at
 evaluation~$t$.
 
 \paragraph{\texttt{step\_size\_mean}.}
@@ -273,20 +351,26 @@ to a narrow fitness band near the optimum. A persistent or growing range
 suggests the algorithm still samples points of widely varying quality.
 
 % ============================================================================
-\section{Novel Features}
+\section{Additional Trajectory Features}
 \label{sec:features:novel}
 
-The six features in this section are designed specifically for this thesis.  Each attempts to address a gap in the existing behavioural feature landscape that is not covered by prior defined metrics.  Together, they form one of the main contributions of this work.
+The six features in this section adapt established statistical and time-series concepts to the analysis of metaheuristic search trajectories. In each case the underlying mathematical tool (autocorrelation, plateau detection, coefficient of variation, Pearson correlation, per-dimension range analysis) is standard in adjacent fields, but its application as a behavioural feature for metaheuristic characterisation is, to our knowledge, new to the optimisation literature.
 
 \paragraph{\texttt{step\_size\_autocorrelation}.}
 \label{sec:features:novel:ssac}
 
 Autocorrelation of fitness values is a well-studied landscape descriptor
 \cite{weinberger1990fitness}, and we include it above as
-\texttt{fitness\_autocorrelation}.  But the
-autocorrelation of \emph{step sizes}, measuring whether the algorithm's
-movement magnitude is self-correlated over time, has not been applied
-as a behavioural feature.
+\texttt{fitness\_autocorrelation}.  The closest precedent for
+autocorrelation as a behavioural feature in optimisation is de~Nobel et
+al.~\cite{deNobel2021tsfresh}, who applied lag-1 autocorrelation to the
+CMA-ES conjugate evolution path $\lVert p_\sigma \rVert$ as part of a
+\texttt{tsfresh}-extracted feature set.  Our feature differs in two
+ways.  First, it operates on Euclidean displacement step sizes from the
+trajectory, which exist for any algorithm, rather than on a CMA-ES
+internal control signal.  Second, it is selected and reported as a
+single named, interpretable behavioural descriptor rather than embedded
+in an automatically extracted feature bank.
 
 Let $s_t = \lVert x_{t+1} - x_t \rVert$ denote the step size at evaluation~$t$.
 The lag-1 autocorrelation of the step-size series is:
@@ -344,8 +428,7 @@ improvement occurs.
 \paragraph{\texttt{improvement\_spatial\_correlation}.}
 \label{sec:features:novel:impspatial}
 
-No prior feature relates the \emph{distance} an algorithm travels to the
-\emph{magnitude} of the improvement it achieves.  We define the improvement
+We are not aware of a prior feature that relates the \emph{distance} an algorithm travels to the \emph{magnitude} of the improvement it achieves.  We define the improvement
 spatial correlation as the Pearson correlation between step size and
 improvement magnitude, restricted to improving steps:
 \begin{align}
@@ -429,8 +512,8 @@ identifies and exploits coordinate-wise structure.
 \Cref{tab:feature_cost} summarises the computational cost of each feature
 category, measured over 50 repeated runs on a synthetic trajectory matching
 the experimental setup ($T = 10{,}000$ evaluations, $d = 5$).  Each candidate
-algorithm is evaluated on 50 MA-BBOB trajectories (10 problem instances
-$\times$ 5 seeds), so per-candidate cost is $50\times$ the per-trajectory
+algorithm is evaluated on 50 MA-BBOB trajectories (10 functions
+$\times$ 5 instances), so per-candidate cost is $50\times$ the per-trajectory
 cost.  The dominant cost is the existing BLADE metrics, which build a KD-tree
 for dispersion and iterate over all evaluations for nearest-neighbour
 distance.  The 17 features from categories 1, 4, and~5 add under 250\,ms per
