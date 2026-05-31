@@ -20,11 +20,12 @@ BUDGET_FACTOR = 2000  # FEs = 2000 * dim, BBOB convention
 
 # Algorithm shards
 ALGORITHMS = {
-    'vanilla_winner':          'analysis/figs_phase4/p4_winners/vanilla_winner.py',
-    'neutral_winner':          'analysis/figs_phase4/p4_winners/neutral_winner.py',
-    'sage_winner':             'analysis/figs_phase4/p4_winners/sage_winner.py',
-    'combined_neutral_winner': 'analysis/figs_phase4/p4_winners/combined_neutral_winner.py',
+    'vanilla_winner':          'docs/stage4_winners/vanilla_winner.py',
+    'neutral_winner':          'docs/stage4_winners/neutral_winner.py',
+    'sage_winner':             'docs/stage4_winners/sage_winner.py',
+    'combined_neutral_winner': 'docs/stage4_winners/combined_neutral_winner.py',
     'cma_es':                  'BUILTIN:cma_es',  # served by the runner directly
+    'neighborhood_adaptive_de': 'baselines/neighborhood_adaptive_de.py',  # external: 2025 MA-BBOB competition winner
 }
 
 RESULTS_DIR = os.environ.get('PHASE4_FULL_SUITE_DIR', 'results_phase4_full_suite')
