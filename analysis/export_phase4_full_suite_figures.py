@@ -68,6 +68,7 @@ ALGS = [
     "sage_winner",
     "combined_neutral_winner",
     "cma_es",
+    "neighborhood_adaptive_de",
 ]
 ALG_LABELS = {
     "vanilla_winner": "Vanilla",
@@ -75,6 +76,7 @@ ALG_LABELS = {
     "sage_winner": "SAGE",
     "combined_neutral_winner": "Combined",
     "cma_es": "CMA-ES",
+    "neighborhood_adaptive_de": "NADE",
 }
 ALG_COLORS = {
     "vanilla_winner": "#888888",
@@ -82,6 +84,7 @@ ALG_COLORS = {
     "sage_winner": "#E63946",
     "combined_neutral_winner": "#6A4C93",
     "cma_es": "#111111",
+    "neighborhood_adaptive_de": "#2A9D8F",
 }
 ALG_LINESTYLES = {
     "vanilla_winner": "-",
@@ -89,6 +92,7 @@ ALG_LINESTYLES = {
     "sage_winner": "-",
     "combined_neutral_winner": "-",
     "cma_es": "--",   # dashed to flag as external baseline
+    "neighborhood_adaptive_de": "--",   # dashed: second external baseline
 }
 
 DIMS = [5, 10, 20]
