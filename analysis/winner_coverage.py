@@ -71,3 +71,79 @@ def map_missing_to_ast(winner_path: Path, missing_lines: list[int]) -> list[dict
     for ln in sorted(set(missing_lines)):
         out.append({"line": ln, "construct": _enclosing_label(tree, ln)})
     return out
+
+
+def _except_handler_lines(winner_path: Path) -> list[list[int]]:
+    """Return, per except handler, the set of body line numbers."""
+    tree = ast.parse(Path(winner_path).read_text())
+    handlers = []
+    for node in ast.walk(tree):
+        if isinstance(node, ast.ExceptHandler):
+            body_lines = []
+            for stmt in node.body:
+                body_lines.extend(
+                    range(stmt.lineno, getattr(stmt, "end_lineno", stmt.lineno) + 1)
+                )
+            handlers.append(sorted(set(body_lines)))
+    return handlers
+
+
+def measure_coverage(winner_path: Path, driver: Callable[[type], None]) -> dict:
+    """Run `driver(loaded_class)` under coverage.py(branch=True) and summarise.
+
+    Coverage is started BEFORE the winner is exec'd so that definition-time
+    lines (imports, class/def headers) are traced too; otherwise they would be
+    miscounted as dead.
+    """
+    import coverage
+
+    winner_path = Path(winner_path).resolve()
+    cov = coverage.Coverage(branch=True, include=[str(winner_path)])
+    cov.start()
+    try:
+        cls = load_traced_class(winner_path)   # exec'd while coverage is active
+        driver(cls)
+    finally:
+        cov.stop()
+
+    # analysis2 -> (filename, statements, excluded, missing, missing_formatted)
+    _, statements, _excluded, missing, _ = cov.analysis2(str(winner_path))
+    n_stmt = len(statements)
+    n_missing = len(missing)
+    pct_lines = 100.0 * (n_stmt - n_missing) / n_stmt if n_stmt else 100.0
+
+    # Branch totals from the JSON report summary (public, stable API).
+    import json
+    import os
+    import tempfile
+
+    fd, tmp = tempfile.mkstemp(suffix=".json")
+    os.close(fd)
+    try:
+        cov.json_report(outfile=tmp)
+        data = json.loads(Path(tmp).read_text())
+    finally:
+        os.unlink(tmp)
+    fkey = next((k for k in data["files"] if Path(k).name == winner_path.name), None)
+    summ = data["files"][fkey]["summary"] if fkey else {}
+    n_branches = summ.get("num_branches", 0)
+    covered_branches = summ.get("covered_branches", 0)
+    pct_branches = (100.0 * covered_branches / n_branches) if n_branches else 100.0
+
+    # Which except handlers never fired (no body line executed).
+    handlers = _except_handler_lines(winner_path)
+    missing_set = set(missing)
+    triggered = sum(1 for body in handlers if any(ln not in missing_set for ln in body))
+
+    return {
+        "winner": winner_path.stem,
+        "n_statements": n_stmt,
+        "n_missing": n_missing,
+        "pct_lines": round(pct_lines, 1),
+        "n_branches": n_branches,
+        "pct_branches": round(pct_branches, 1),
+        "dead_lines": sorted(missing),
+        "dead_constructs": map_missing_to_ast(winner_path, list(missing)),
+        "except_handlers_total": len(handlers),
+        "except_handlers_triggered": triggered,
+    }

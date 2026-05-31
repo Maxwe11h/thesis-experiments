@@ -27,3 +27,23 @@ def test_map_missing_to_ast_labels_constructs():
     kinds = {c["line"]: c["construct"] for c in constructs}
     assert "FunctionDef:_never_called_helper" in kinds[helper_line]
     assert "ExceptHandler" in kinds[except_body]
+
+
+def test_measure_coverage_flags_dead_lines_and_except():
+    from analysis.winner_coverage import measure_coverage
+
+    def driver(cls):
+        # Exercise only the live path on a trivial quadratic; func never raises.
+        np.random.seed(0)
+        algo = cls(budget=200, dim=4)
+        algo(lambda x: float(np.sum(np.asarray(x, dtype=float) ** 2)))
+
+    res = measure_coverage(FIXTURE, driver)
+    assert 0.0 < res["pct_lines"] < 100.0          # some code is dead
+    # The dead helper and the never-taken except must be reported unreached.
+    dead_constructs = {c["construct"] for c in res["dead_constructs"]}
+    assert any("FunctionDef:_never_called_helper" in c for c in dead_constructs)
+    assert "ExceptHandler" in dead_constructs
+    # The bare except never fired.
+    assert res["except_handlers_total"] >= 1
+    assert res["except_handlers_triggered"] == 0
