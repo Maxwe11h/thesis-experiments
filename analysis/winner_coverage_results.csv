@@ -1,0 +1,5 @@
+condition,winner,n_statements,n_missing,pct_lines,n_branches,pct_branches,except_handlers_total,except_handlers_triggered
+vanilla,vanilla_winner,102,1,99.0,28,92.9,1,0
+neutral,neutral_winner,109,3,97.2,38,94.7,1,0
+sage,sage_winner,90,2,97.8,24,95.8,1,0
+combined,combined_neutral_winner,92,5,94.6,28,82.1,1,0

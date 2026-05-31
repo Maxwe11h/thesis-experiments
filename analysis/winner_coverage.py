@@ -11,10 +11,12 @@ Run locally (thesis env):  python analysis/winner_coverage.py
 from __future__ import annotations
 
 import ast
+import sys
 from pathlib import Path
 from typing import Callable
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(REPO_ROOT))  # allow `import experiments...` when run as a script
 WINNERS = {
     "vanilla":  REPO_ROOT / "docs/stage4_winners/vanilla_winner.py",
     "neutral":  REPO_ROOT / "docs/stage4_winners/neutral_winner.py",
@@ -147,3 +149,56 @@ def measure_coverage(winner_path: Path, driver: Callable[[type], None]) -> dict:
         "except_handlers_total": len(handlers),
         "except_handlers_triggered": triggered,
     }
+
+
+def mabbob_driver(dims=(5, 10, 20), n_instances=15, n_seeds=2) -> Callable[[type], None]:
+    """Driver that runs a winner over a MA-BBOB sample at the full 2000*d budget,
+    reusing the section 5.4.6 runner so coverage reflects real evaluation behaviour.
+
+    Default sample = 3 dims x 15 instances x 2 seeds = 90 runs/winner. The
+    headline coverage numbers saturate well below this; the larger-sample
+    robustness check (see module test / plan) confirms the unreached set does
+    not shrink with more sampling (i.e. it is inert, not merely rare)."""
+    from experiments.phase4_full_suite_runner import _run_once
+
+    def driver(cls):
+        factory = lambda budget, dim: cls(budget=budget, dim=dim)
+        for dim in dims:
+            for inst in range(n_instances):
+                for seed in range(n_seeds):
+                    _run_once(factory, dim, inst, seed)
+
+    return driver
+
+
+def main() -> None:
+    import csv
+
+    driver = mabbob_driver()
+    rows = []
+    for name, path in WINNERS.items():
+        res = measure_coverage(path, driver)
+        res["condition"] = name
+        rows.append(res)
+        print(f"{name:9s} lines {res['pct_lines']:5.1f}%  "
+              f"branches {res['pct_branches']:5.1f}%  "
+              f"dead_lines {res['n_missing']:3d}  "
+              f"except {res['except_handlers_triggered']}/{res['except_handlers_total']} fired")
+        for c in res["dead_constructs"]:
+            print(f"    L{c['line']:>3}  {c['construct']}")
+
+    out = REPO_ROOT / "analysis" / "winner_coverage_results.csv"
+    with out.open("w", newline="") as fh:
+        w = csv.writer(fh)
+        w.writerow(["condition", "winner", "n_statements", "n_missing",
+                    "pct_lines", "n_branches", "pct_branches",
+                    "except_handlers_total", "except_handlers_triggered"])
+        for r in rows:
+            w.writerow([r["condition"], r["winner"], r["n_statements"], r["n_missing"],
+                        r["pct_lines"], r["n_branches"], r["pct_branches"],
+                        r["except_handlers_total"], r["except_handlers_triggered"]])
+    print(f"\nwrote {out}")
+
+
+if __name__ == "__main__":
+    main()
