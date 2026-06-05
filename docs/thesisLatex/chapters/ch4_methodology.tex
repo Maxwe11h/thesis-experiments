@@ -12,7 +12,7 @@ This chapter describes the experimental pipeline used to answer the research que
 \section{LLaMEA Framework}
 \label{sec:meth-llamea}
 
-Vanilla LLaMEA operates a $(1 \stackrel{+}{,} 1)$-ES loop, summarised in \cref{alg:llamea}. Every run starts from a shared initial algorithm, \texttt{RandomSearch}, which performs uniform random sampling across the search space and returns the best sample found. Pre-seeding the population this way ensures that all models and conditions begin from identical starting conditions, so observed differences are attributable to the LLM and the feedback rather than to initialisation luck.
+Vanilla LLaMEA operates a $(1 + 1)$-ES loop, summarised in \cref{alg:llamea}. Every run starts from a shared initial algorithm, \texttt{RandomSearch}, which performs uniform random sampling across the search space and returns the best sample found. Pre-seeding the population this way ensures that all models and conditions begin from identical starting conditions, so observed differences are attributable to the LLM and the feedback rather than to initialisation luck.
 
 \begin{algorithm}[t]
 \caption{$(1+1)$-LLaMEA evolutionary loop, adapted from \cite{vanStein2024LLaMEA}.}
@@ -197,7 +197,7 @@ Models are compared on three factors. The failure rate is the fraction of candid
 
 Stage~2 analyses the Stage~1 dataset of behavioural feature vectors for all valid candidates across 10 models and 5 seeds to determine which of the 32 features in \cref{ch:features} are most predictive of algorithm quality, and to select a tractable subset for the feedback experiments. The target subset size is fixed at ten features. The cap is set by the available compute budget and API costs rather than statistical considerations. Stage~3 evaluates each retained feature in three framings across 5 seeds of 100 candidates with the model identified in Stage~1, and the per-feature cost of running these evaluations makes a larger subset infeasible. Selecting on predictive power keeps the ten most informative features in the loop, while pruning redundancy ensures they capture distinct aspects of behaviour rather than re-stating the same signal.
 
-Three complementary approaches are applied to rank the 32 features, each capturing a different aspect of feature quality. Spearman rank correlation~\cite{spearman1904proof} captures monotonic associations between each feature and AOCC across all valid candidates, regardless of functional form. Random Forest permutation importance~\cite{breiman2001randomforests} captures non-linear and interaction effects: a regression model is trained to predict AOCC from all 32 features, and each feature's importance is measured by the decrease in out-of-bag $R^2$ when its values are permuted. Kolmogorov--Smirnov distributional effect size~\cite{kolmogorov1933} captures distributional separation between high- and low-quality algorithms: it computes the KS statistic between feature distributions of the top-25\% and bottom-25\% candidates by AOCC, after winsorising each feature at the 1st and 99th percentiles to limit the influence of outliers.
+Three complementary approaches are applied to rank the 32 features, each capturing a different aspect of feature quality. Spearman rank correlation~\cite{spearman1904proof} captures monotonic associations between each feature and AOCC across all valid candidates, regardless of functional form. Random Forest permutation importance~\cite{breiman2001randomforests} captures non-linear and interaction effects. A regression model is trained to predict AOCC from all 32 features, and each feature's importance is measured by the decrease in out-of-bag $R^2$ when its values are permuted. Kolmogorov--Smirnov distributional effect size~\cite{kolmogorov1933} captures distributional separation between high- and low-quality algorithms. It computes the KS statistic between feature distributions of the top-25\% and bottom-25\% candidates by AOCC, after winsorising each feature at the 1st and 99th percentiles to limit the influence of outliers.
 
 Each method produces a ranked list of 32 features. The three rankings are aggregated via Borda count~\cite{black1958theory}. Each feature receives $32 - r_i$ points from each method (where $r_i$ is its rank in method $i$). Summed scores determine the consensus ranking, with lower values indicating a more informative feature.
 
@@ -238,13 +238,45 @@ Each condition runs for 100 candidates across 5 independent seeds, for a total o
 \section{Full-Benchmark Comparison}
 \label{sec:meth-stage4}
 
+\begin{figure*}[!t]
+  \centering
+  \includegraphics[width=\textwidth]{figures/fig_model_screening.pdf}
+  \caption{LLM screening results. (a)~Mean best AOCC by model ($\pm$ std across 5 seeds). (b)~Best-so-far AOCC over 100 evaluations, averaged across 5 seeds. Shaded regions show $\pm$1 std.}
+  \label{fig:model-screening}
+\end{figure*}
+
+\begin{table}[t]
+\centering
+\caption{Stage~1 model ranking (100 candidates $\times$ 5 seeds, vanilla feedback). Fail\% and AOCC averaged across seeds ($\pm$ std).}
+\label{tab:model-ranking}
+\footnotesize
+\begin{tabular}{@{}rlrrr@{}}
+\toprule
+\textbf{\#} & \textbf{Model} & \textbf{Fail\%} & \textbf{AOCC} & \textbf{h/run} \\
+\midrule
+1  & Gem.~3 Pro    & 10.2  & .885$\pm$.011 & 5.1 \\
+2  & Gem.~3 Flash  & \textbf{2.0} & .862$\pm$.108 & 3.9 \\
+3  & Qwen3.5 27B   & 41.0  & .817$\pm$.009 & 38.9 \\
+4  & OLMo~3 32B    & 13.2  & .690$\pm$.109 & 39.3 \\
+5  & OLMo~3 7B     & 27.6  & .657$\pm$.160 & 18.4 \\
+6  & Devstral~2    & 32.6  & .625$\pm$.222 & 5.0 \\
+7  & Granite~4 3B  & 53.8  & .569$\pm$.087 & \textbf{0.6} \\
+8  & Qwen3.5 4B    & 76.2  & .492$\pm$.209 & 7.9 \\
+9  & Qwen3.5 9B    & 91.6  & .373$\pm$.127 & 3.0 \\
+10 & RNJ-1 8B      & 34.6  & .254$\pm$.037 & 14.5 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
 Stage~4 is a head-to-head comparison of four feedback conditions, run on the twenty-function MA-BBOB set with longer evolutionary runs and more independent seeds than the screening stages so condition differences can be detected at the resolution required to draw substantive conclusions.
 
 The vanilla condition uses AOCC-only feedback, identical to the baseline used in Stage~1, repeated here on the new function set as the reference point against which all other conditions are measured. The neutral condition extends AOCC with trajectory-derived behavioural features, isolating the contribution of distal (behavioural) feedback. The sage condition pairs AOCC with structural code-level guidance from LLaMEA-SAGE~\cite{vanStein2026LLaMEASAGE}, used unmodified, isolating the contribution of proximal (structural) feedback. The combined condition appends both behavioural and structural feedback in the same prompt, testing whether the two channels are complementary or redundant.
 
 The behavioural feedback uses the five features ranked highest by mean best AOCC across the Stage~3 neutral conditions. These features are \texttt{intensification\_ratio}, \texttt{dimension\_convergence\_heterogeneity}, \texttt{fitness\_plateau\_fraction}, \texttt{avg\_improvement}, and \texttt{improvement\_spatial\_correlation}. All five are appended to the AOCC feedback string in the neutral framing. The five-feature cap keeps the prompt compact while still spanning the four functional categories of \cref{ch:features} (intensification, convergence, stagnation, and exploration).
 
-Benchmark parameters from \cref{sec:meth-benchmark} are inherited unchanged, with the Stage~4 function set detailed in \cref{app:instance-selection-stage4}. Each condition runs for 500 candidates per seed, five times the screening budget, giving feedback signals that act gradually a fair chance to express their effect. This is particularly meaningful for SAGE, whose structural advice accumulates over many generations. Ten independent seeds per condition (double the previous stages) tighten the variance bands when comparing condition means and make condition-vs-condition differences detectable at smaller effect sizes. The total compute is $4 \text{ conditions} \times 10 \text{ seeds} \times 500 \text{ candidates} = 20{,}000$ candidate algorithms, each evaluated over $20 \text{ functions} \times 5 \text{ instances} = 100$ MA-BBOB runs hence totalling 2,000,000 MA-BBOB function evaluations.
+Benchmark parameters from \cref{sec:meth-benchmark} are inherited unchanged, with the Stage~4 function set detailed in \cref{app:instance-selection-stage4}. Each condition runs for 500 candidates per seed, five times the screening budget, giving feedback signals that act gradually a fair chance to express their effect. Ten independent seeds per condition (double the previous stages) tighten the variance bands when comparing condition means and make condition-vs-condition differences detectable at smaller effect sizes. The total compute is $4 \text{ conditions} \times 10 \text{ seeds} \times 500 \text{ candidates} = 20{,}000$ candidate algorithms, each evaluated over $20 \text{ functions} \times 5 \text{ instances} = 100$ MA-BBOB runs hence totalling 2,000,000 MA-BBOB function evaluations.
+
+Finally, to assess how the strongest generated algorithms generalise beyond the twenty-function set and the 5-dimensional regime in which they were developed, the best-found algorithm from each of the conditions is re-evaluated on the full $1{,}000$-instance MA-BBOB pool. A generic CMA-ES~\cite{hansen2001cmaes} and \texttt{NeighborhoodAdaptiveDE} (NADE)~\cite{vanStein2025NeighborhoodDE}, the winner of the 2025 MA-BBOB competition, are used as basline performance references. Each of the six algorithms runs on all $1{,}000$ MA-BBOB functions across 5 instance seeds and three dimensionalities $d \in \{5, 10, 20\}$, under a $2{,}000d$ FE budget per run, totalling approximately $2.1 \times 10^9$ function evaluations.
 
 % ---------------------------------------------------------------------------
 \section{Infrastructure}

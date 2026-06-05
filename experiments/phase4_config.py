@@ -40,13 +40,13 @@ MODEL_CFG = {
 }
 
 # ---------------------------------------------------------------------------
-# Benchmark — 20 MA-BBOB instances selected by group-stratified greedy + swap
+# Benchmark — 20 MA-BBOB instances
 # ---------------------------------------------------------------------------
-# Selected by analysis/select_instances.py methodology (greedy + local search)
-# with K=20, excluding Phase 1 instances. Scoring = coverage_penalty
-# - 3.0*func_cv - 5.0*group_std.
-# Coverage: 24/24 functions, func CV=0.080, group std=0.011
-# Group shares: Sep 20.0%, Low/mod 18.0%, High/uni 20.7%, Multi-adeq 21.3%, Multi-weak 20.0%
+# Selected by analysis/phase4_instance_selection.ipynb (greedy forward
+# selection with K=20 and Phase 1 instances excluded from the candidate pool).
+# Scoring = -missing*100 - group_std*10 - func_cv.
+# Coverage: 24/24 functions, func CV=0.080, group std=0.011.
+# Group shares: Sep 20.0%, Low/mod 18.0%, High/uni 20.7%, Multi-adeq 21.3%, Multi-weak 20.0%.
 TRAINING_INSTANCES = [22, 93, 166, 196, 203, 288, 321, 408, 480, 513,
                       528, 598, 697, 781, 784, 803, 894, 947, 951, 999]
 

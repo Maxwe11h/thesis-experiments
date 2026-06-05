@@ -11,7 +11,8 @@ Produces:
   - fig_condition_ranking.pdf     : horizontal bar chart of all 29 conditions (phase3_feedback_analysis)
   - fig_convergence_by_format.pdf : convergence curves by format per feature (phase3_feedback_analysis)
   - fig_steering_shifts.pdf       : behavioral shift bar chart by format (phase3_feedback_analysis)
-  - fig_mabbob_instances.pdf      : MA-BBOB instance selection visualization (mabbob_instance_selection)
+  - fig_mabbob_instances.pdf      : 10-instance MA-BBOB selection (Stages 1-3)
+  - fig_mabbob_instances_phase4.pdf: 20-instance MA-BBOB selection (Stage 4)
 
 Usage:
     python export_figures.py
@@ -45,7 +46,7 @@ warnings.filterwarnings("ignore")
 # ---------------------------------------------------------------------------
 SCRIPT_DIR = Path(__file__).resolve().parent
 REPO_ROOT = SCRIPT_DIR.parent
-FIGURES_DIR = REPO_ROOT / "docs" / "thesisProposalLatex" / "figures"
+FIGURES_DIR = REPO_ROOT / "docs" / "thesisLatex" / "figures"
 RESULTS_PHASE1 = REPO_ROOT / "results_phase1"
 RESULTS_PHASE3 = REPO_ROOT / "results_phase3"
 WEIGHTS_CSV = REPO_ROOT / "BLADE" / "iohblade" / "benchmarks" / "BBOB" / "mabbob" / "weights.csv"
@@ -630,17 +631,48 @@ def fig_ks_effect(df):
 # Figure 3: Failure Modes (Phase 1)
 # ===================================================================
 
-def fig_failure_modes(df, summary):
-    """Stacked bar chart of failure categories per model."""
-    failed_df = df[df["failed"]].copy()
-    failed_df["failure_type"] = failed_df.apply(categorize_failure, axis=1)
+# Fixed alphabetical mapping for failure categories produced by the BLADE
+# compile-and-smoke replay (analysis/phase4/failure_modes.classify_failure).
+# Both §5.1's fig_failure_modes and §5.4's fig_phase4_failure_modes pull
+# from this so identical categories appear in identical hues.
+FAILURE_CATEGORY_COLORS = {
+    "code_generation":      PASTEL_PALETTE[0],   # #4e79a7
+    "import_violation":     PASTEL_PALETTE[1],   # #f28e2b
+    "interface_mismatch":   PASTEL_PALETTE[2],   # #e15759
+    "runtime_error":        PASTEL_PALETTE[3],   # #76b7b2
+    "unclassified_success": PASTEL_PALETTE[4],   # #59a14f
+}
+FAILURE_CATEGORIES_ORDER = list(FAILURE_CATEGORY_COLORS.keys())
+FAILURE_CATEGORY_LABELS = {
+    "code_generation":      "Code generation",
+    "import_violation":     "Import violation",
+    "interface_mismatch":   "Interface mismatch",
+    "runtime_error":        "Runtime error",
+    "unclassified_success": "Unclassified",
+}
 
-    failure_counts = failed_df.groupby(["model", "failure_type"]).size().unstack(fill_value=0)
-    failure_counts = failure_counts.reindex(summary["model"].tolist(), fill_value=0)
 
-    # Use pastel palette for the stacked segments
-    n_cats = len(failure_counts.columns)
-    cat_colors = (PASTEL_PALETTE * ((n_cats // len(PASTEL_PALETTE)) + 1))[:n_cats]
+def fig_failure_modes(summary):
+    """Stacked bar chart of failure categories per model.
+
+    Reads the BLADE replay-classified failures from
+    analysis/figs_phase1/p1_failure_modes.csv (produced by
+    analysis/run_phase1_classifier.py), so it shares the methodology and
+    colour mapping with §5.4's fig_phase4_failure_modes.
+    """
+    fail_csv = REPO_ROOT / "analysis" / "figs_phase1" / "p1_failure_modes.csv"
+    if not fail_csv.exists():
+        print(f"  WARNING: {fail_csv} missing; run analysis/run_phase1_classifier.py first")
+        return
+    fm = pd.read_csv(fail_csv)
+
+    cats_present = [c for c in FAILURE_CATEGORIES_ORDER if c in set(fm["label"])]
+    failure_counts = (fm.groupby(["model", "label"]).size()
+                      .unstack(fill_value=0)
+                      .reindex(index=summary["model"].tolist(),
+                               columns=cats_present, fill_value=0))
+    cat_colors = [FAILURE_CATEGORY_COLORS[c] for c in cats_present]
+    failure_counts = failure_counts.rename(columns=FAILURE_CATEGORY_LABELS)
 
     fig, ax = plt.subplots(figsize=(14, 6))
     failure_counts.plot(kind="bar", stacked=True, ax=ax,
@@ -1178,54 +1210,25 @@ def fig_steering_shifts(df3):
 # Figure 9: MA-BBOB Instance Selection (2-panel)
 # ===================================================================
 
-def fig_mabbob_instances():
-    """Per-function weight share and per-group weight share in selected MA-BBOB instances."""
-    # weights.csv path: ../BLADE/iohblade/benchmarks/BBOB/mabbob/weights.csv
-    if not WEIGHTS_CSV.exists():
-        print(f"  WARNING: weights.csv not found at {WEIGHTS_CSV}")
-        print("  Skipping fig_mabbob_instances")
-        return
+_MABBOB_GROUPS = {
+    "Separable (f1-f5)": list(range(0, 5)),
+    "Low/mod conditioning (f6-f9)": list(range(5, 9)),
+    "High cond / unimodal (f10-f14)": list(range(9, 14)),
+    "Multimodal adequate (f15-f19)": list(range(14, 19)),
+    "Multimodal weak (f20-f24)": list(range(19, 24)),
+}
 
-    weights = pd.read_csv(WEIGHTS_CSV, index_col=0)
-    W = weights.values  # 1000 x 24
+_MABBOB_GROUP_COLORS = {
+    "Separable": "#4e79a7",
+    "Low/mod conditioning": "#f28e2b",
+    "High cond / unimodal": "#e15759",
+    "Multimodal adequate": "#76b7b2",
+    "Multimodal weak": "#59a14f",
+}
 
-    GROUPS = {
-        "Separable (f1-f5)": list(range(0, 5)),
-        "Low/mod conditioning (f6-f9)": list(range(5, 9)),
-        "High cond / unimodal (f10-f14)": list(range(9, 14)),
-        "Multimodal adequate (f15-f19)": list(range(14, 19)),
-        "Multimodal weak (f20-f24)": list(range(19, 24)),
-    }
 
-    # Greedy selection (reproduce notebook logic)
-    def score_subset(indices):
-        sub = W[indices]
-        func_totals = sub.sum(axis=0)
-        total = func_totals.sum()
-        if total == 0:
-            return -9999
-        missing = (func_totals == 0).sum()
-        group_shares = [func_totals[cols].sum() / total for cols in GROUPS.values()]
-        group_dev = np.std(group_shares)
-        nonzero = func_totals[func_totals > 0]
-        func_cv = np.std(nonzero) / np.mean(nonzero) if len(nonzero) > 0 else 999
-        return -missing * 100 - group_dev * 10 - func_cv
-
-    selected = []
-    remaining = list(range(1000))
-    for step in range(10):
-        best_score = -9999
-        best_idx = -1
-        for idx in remaining:
-            s = score_subset(selected + [idx])
-            if s > best_score:
-                best_score = s
-                best_idx = idx
-        selected.append(best_idx)
-        remaining.remove(best_idx)
-    selected.sort()
-
-    # Compute shares
+def _plot_mabbob_distribution(W, selected, outpath):
+    """Render the per-function + per-group weight panels for a chosen instance subset."""
     sub = W[selected]
     func_totals = sub.sum(axis=0)
     total = func_totals.sum()
@@ -1234,24 +1237,14 @@ def fig_mabbob_instances():
     shares = func_totals / total
 
     group_map = {}
-    for gname, cols in GROUPS.items():
+    for gname, cols in _MABBOB_GROUPS.items():
         for c in cols:
             group_map[func_labels[c]] = gname.split(" (")[0]
+    bar_colors = [_MABBOB_GROUP_COLORS[group_map[f]] for f in func_labels]
 
-    group_colors = {
-        "Separable": "#4e79a7",
-        "Low/mod conditioning": "#f28e2b",
-        "High cond / unimodal": "#e15759",
-        "Multimodal adequate": "#76b7b2",
-        "Multimodal weak": "#59a14f",
-    }
-    bar_colors = [group_colors[group_map[f]] for f in func_labels]
-
-    # --- 2-panel figure ---
     fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(16, 5.5),
                                     gridspec_kw={"width_ratios": [3, 1.2]})
 
-    # Panel (a): Per-function weight share
     bars = ax1.bar(func_labels, shares * 100, color=bar_colors,
                    edgecolor="white", linewidth=0.5)
     ax1.axhline(y=ideal * 100, color="#555555", linestyle="--", linewidth=1,
@@ -1260,28 +1253,26 @@ def fig_mabbob_instances():
     ax1.set_xlabel("BBOB Function")
     ax1.set_title("(a) Per-function weight share", fontweight="bold")
     ax1.set_ylim(0, max(shares * 100) * 1.3)
-
     for bar, share in zip(bars, shares):
         ax1.text(bar.get_x() + bar.get_width() / 2, bar.get_height() + 0.15,
                  f"{share*100:.1f}", ha="center", va="bottom", fontsize=FONT_SIZE_LEGEND)
 
     patches = [mpatches.Patch(color=c, edgecolor="none", label=g)
-               for g, c in group_colors.items()]
+               for g, c in _MABBOB_GROUP_COLORS.items()]
     patches.append(mlines.Line2D([], [], color="#555555", linestyle="--",
-                                 linewidth=1, label="Ideal (4.2%)"))
+                                 linewidth=1, label=f"Ideal ({ideal*100:.1f}%)"))
     ax1.legend(handles=patches, loc="upper right", fontsize=FONT_SIZE_LEGEND)
 
-    # Panel (b): Per-group weight share
     group_names_short = []
     group_shares_pct = []
     group_bar_colors = []
-    ideal_group = 20.0  # each of 5 groups should have 20%
-    for gname, cols in GROUPS.items():
+    ideal_group = 20.0
+    for gname, cols in _MABBOB_GROUPS.items():
         short = gname.split(" (")[0]
         group_names_short.append(short)
         g_share = func_totals[cols].sum() / total * 100
         group_shares_pct.append(g_share)
-        group_bar_colors.append(group_colors[short])
+        group_bar_colors.append(_MABBOB_GROUP_COLORS[short])
 
     x_g = np.arange(len(group_names_short))
     ax2.bar(x_g, group_shares_pct, color=group_bar_colors, edgecolor="white",
@@ -1293,18 +1284,71 @@ def fig_mabbob_instances():
     ax2.set_ylabel("Share of total weight (%)")
     ax2.set_title("(b) Per-group weight share", fontweight="bold")
     ax2.set_ylim(0, max(group_shares_pct) * 1.3)
-
     for i, pct in enumerate(group_shares_pct):
         ax2.text(i, pct + 0.3, f"{pct:.1f}%", ha="center", va="bottom",
                  fontsize=FONT_SIZE_LEGEND)
-
     ax2.legend(fontsize=FONT_SIZE_LEGEND)
 
     fig.tight_layout()
-    outpath = FIGURES_DIR / "fig_mabbob_instances.pdf"
     fig.savefig(outpath, **SAVEFIG_KW)
     plt.close(fig)
     print(f"  Saved {outpath.name}")
+
+
+def fig_mabbob_instances():
+    """10-instance Stages 1-3 set: greedy selection prioritising group balance."""
+    if not WEIGHTS_CSV.exists():
+        print(f"  WARNING: weights.csv not found at {WEIGHTS_CSV}")
+        print("  Skipping fig_mabbob_instances")
+        return
+
+    W = pd.read_csv(WEIGHTS_CSV, index_col=0).values
+
+    def score_subset(indices):
+        sub = W[indices]
+        func_totals = sub.sum(axis=0)
+        total = func_totals.sum()
+        if total == 0:
+            return -9999
+        missing = (func_totals == 0).sum()
+        group_shares = [func_totals[cols].sum() / total for cols in _MABBOB_GROUPS.values()]
+        group_dev = np.std(group_shares)
+        nonzero = func_totals[func_totals > 0]
+        func_cv = np.std(nonzero) / np.mean(nonzero) if len(nonzero) > 0 else 999
+        return -missing * 100 - group_dev * 10 - func_cv
+
+    selected = []
+    remaining = list(range(W.shape[0]))
+    for _ in range(10):
+        best_score, best_idx = -9999, -1
+        for idx in remaining:
+            s = score_subset(selected + [idx])
+            if s > best_score:
+                best_score, best_idx = s, idx
+        selected.append(best_idx)
+        remaining.remove(best_idx)
+    selected.sort()
+
+    _plot_mabbob_distribution(W, selected, FIGURES_DIR / "fig_mabbob_instances.pdf")
+
+
+def fig_mabbob_instances_phase4():
+    """20-instance Stage 4 set: predefined in experiments.phase4_config.TRAINING_INSTANCES."""
+    if not WEIGHTS_CSV.exists():
+        print(f"  WARNING: weights.csv not found at {WEIGHTS_CSV}")
+        print("  Skipping fig_mabbob_instances_phase4")
+        return
+
+    try:
+        from experiments.phase4_config import TRAINING_INSTANCES
+    except ImportError as e:
+        print(f"  WARNING: cannot import phase4 config ({e})")
+        print("  Skipping fig_mabbob_instances_phase4")
+        return
+
+    W = pd.read_csv(WEIGHTS_CSV, index_col=0).values
+    _plot_mabbob_distribution(W, list(TRAINING_INSTANCES),
+                               FIGURES_DIR / "fig_mabbob_instances_phase4.pdf")
 
 
 # ===================================================================
@@ -1339,7 +1383,7 @@ def main():
         fig_ks_effect(df1)
 
         print("[Phase 1] fig_failure_modes.pdf")
-        fig_failure_modes(df1, summary)
+        fig_failure_modes(summary)
 
         # spearman_heatmap superseded by fig_spearman above
     else:
@@ -1369,9 +1413,12 @@ def main():
     else:
         print(f"  WARNING: {RESULTS_PHASE3} not found -- skipping Phase 3 figures")
 
-    # --- MA-BBOB figure ---
+    # --- MA-BBOB figures ---
     print("\n[MA-BBOB] fig_mabbob_instances.pdf")
     fig_mabbob_instances()
+
+    print("[MA-BBOB] fig_mabbob_instances_phase4.pdf")
+    fig_mabbob_instances_phase4()
 
     # --- Summary ---
     produced = list(FIGURES_DIR.glob("fig_*.pdf"))

@@ -12,9 +12,10 @@ Produces:
   - fig_phase4_convergence.pdf
   - fig_phase4_per_instance.pdf
   - fig_phase4_failure_rates.pdf
-  - fig_phase4_failure_by_gen.pdf
+  - fig_phase4_failure_by_gen.pdf       (backup; not used in §5.4 currently)
+  - fig_phase4_failure_modes.pdf        (stacked bar, mirror of §5.1)
+  - fig_phase4_failure_cumulative.pdf   (cumulative failure rate over time)
   - fig_phase4_behavioural.pdf
-  - fig_phase4_budget_threshold.pdf
 
 Usage: python analysis/export_phase4_figures.py
 """
@@ -87,7 +88,7 @@ COND_LABELS = {
 }
 COND_COLORS = {
     "vanilla": "#888888",
-    "neutral": "#2E86AB",
+    "neutral": "#4e79a7",  # matches FORMAT_COLORS["neutral"] in export_figures.py
     "sage": "#E63946",
     "combined_neutral": "#6A4C93",
 }
@@ -169,7 +170,7 @@ def load_per_instance() -> pd.DataFrame:
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
-def _styled_boxplot(ax, data, labels, colors, *, widths=0.55):
+def _styled_boxplot(ax, data, labels, colors, *, widths=0.5):
     """Produce a boxplot in the export_figures.py style: pastel face, dark
     median, grey whisker/cap, soft fliers."""
     bp = ax.boxplot(
@@ -187,7 +188,7 @@ def _styled_boxplot(ax, data, labels, colors, *, widths=0.55):
     return bp
 
 
-def _strip_overlay(ax, data, colors, *, x_offsets=None, jitter=0.04, size=24):
+def _strip_overlay(ax, data, colors, *, x_offsets=None, jitter=0.04, size=20):
     rng = np.random.default_rng(42)
     x_offsets = x_offsets or list(range(1, len(data) + 1))
     for x, vals, c in zip(x_offsets, data, colors):
@@ -195,7 +196,7 @@ def _strip_overlay(ax, data, colors, *, x_offsets=None, jitter=0.04, size=24):
             continue
         jx = rng.normal(0, jitter, size=len(vals))
         ax.scatter(np.full_like(vals, x, dtype=float) + jx, vals,
-                   alpha=0.65, s=size, color=c, edgecolor="none", linewidth=0,
+                   alpha=0.5, s=size, color=c, edgecolor="none", linewidth=0,
                    zorder=3)
 
 
@@ -217,25 +218,14 @@ def fig_final_aocc(df: pd.DataFrame) -> None:
     colors = [COND_COLORS[c] for c in CONDITIONS]
     labels = [COND_LABELS[c] for c in CONDITIONS]
 
-    H, p_kw = stats.kruskal(*groups)
-
     fig, ax = plt.subplots(figsize=(8, 5))
     _styled_boxplot(ax, groups, labels, colors)
     _strip_overlay(ax, groups, colors)
-
-    # Mean markers
-    for i, vals in enumerate(groups):
-        ax.plot([i + 1 - 0.22, i + 1 + 0.22], [vals.mean(), vals.mean()],
-                color="#333333", linewidth=2.0, zorder=4)
 
     ax.set_ylabel("Final best-so-far AOCC")
     ax.set_xlabel("")
     ax.set_title("Final AOCC after 500 candidates (10 seeds per condition)",
                  fontweight="bold")
-    ax.text(0.02, 0.04,
-            f"Kruskal-Wallis  H={H:.3f},  p={p_kw:.4f}",
-            transform=ax.transAxes, va="bottom",
-            fontsize=FONT_SIZE_TICK, bbox=STAT_BOX)
 
     fig.tight_layout()
     out = FIGURES_DIR / "fig_phase4_final_aocc.pdf"
@@ -245,34 +235,64 @@ def fig_final_aocc(df: pd.DataFrame) -> None:
 
 
 # ===========================================================================
-# Figure 2 — Convergence dynamics (95% bootstrap CI ribbon)
+# Figure 2 — Convergence dynamics (two panels: full range + zoomed)
 # ===========================================================================
 def fig_convergence(df: pd.DataFrame) -> None:
-    fig, ax = plt.subplots(figsize=(10, 5))
-
+    # Mirrors export_figures.py:fig_model_screening panel (b): per-seed
+    # best-so-far via expanding().max(), then mean +/- std across seeds, with
+    # no smoothing (the cumulative max is inherently monotone non-decreasing).
+    curves = {}
     for c in CONDITIONS:
         sub = df[df.condition == c]
-        rows = []
-        for g, gd in sub.groupby("generation"):
-            vals = gd["best_so_far"].dropna().values
-            if len(vals) < 2:
+        per_seed = []
+        for seed in SEEDS:
+            sd = (sub[sub.seed == seed]
+                  .sort_values("generation")["AOCC_valid"].values.astype(float))
+            if len(sd) == 0:
                 continue
-            lo, hi = _bootstrap_ci(vals)
-            rows.append({"generation": g, "mean": vals.mean(),
-                         "ci_lo": lo, "ci_hi": hi})
-        curve = pd.DataFrame(rows)
-        if curve.empty:
+            bsf = pd.Series(sd).expanding().max().values
+            per_seed.append(bsf)
+        if not per_seed:
+            curves[c] = (np.array([]), np.array([]), np.array([]))
             continue
-        ax.plot(curve.generation, curve["mean"],
-                label=COND_LABELS[c], color=COND_COLORS[c], linewidth=1.8)
-        ax.fill_between(curve.generation, curve.ci_lo, curve.ci_hi,
-                        color=COND_COLORS[c], alpha=0.18, linewidth=0)
+        max_len = max(len(s) for s in per_seed)
+        padded = []
+        for s in per_seed:
+            if len(s) < max_len:
+                s = np.concatenate([s, np.full(max_len - len(s), s[-1])])
+            padded.append(s)
+        arr = np.vstack(padded)
+        x = np.arange(1, max_len + 1)
+        mean = np.nanmean(arr, axis=0)
+        std = np.nanstd(arr, axis=0)
+        curves[c] = (x, mean, std)
 
-    ax.set_xlabel("Candidate generation")
-    ax.set_ylabel("Best-so-far AOCC")
-    ax.set_title("Convergence dynamics (mean, 95% bootstrap CI across 10 seeds)",
-                 fontweight="bold")
-    ax.legend(loc="lower right", frameon=True, framealpha=0.95)
+    def _draw(ax, ylim, title):
+        for c in CONDITIONS:
+            x, mean, std = curves[c]
+            if x.size == 0:
+                continue
+            ax.plot(x, mean, label=COND_LABELS[c],
+                    color=COND_COLORS[c], linewidth=1.5)
+            ax.fill_between(x, mean - std, mean + std,
+                            color=COND_COLORS[c], alpha=0.15, linewidth=0)
+        ax.set_xlabel("Candidate generation")
+        ax.set_ylabel("Best-so-far AOCC")
+        ax.set_title(title, fontweight="bold")
+        if ylim is not None:
+            ax.set_ylim(*ylim)
+        ax.grid(True, which="major", linestyle=":", linewidth=0.8,
+                color="#cccccc", alpha=0.9)
+        ax.set_axisbelow(True)
+
+    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(15, 5))
+    _draw(ax1, ylim=None, title="(a) AOCC convergence curve")
+    _draw(ax2, ylim=(0.75, 1.0), title="(b) Zoomed to 0.75 - 1.0")
+
+    # Single legend at the right of panel (b)
+    handles, labels = ax2.get_legend_handles_labels()
+    ax2.legend(handles, labels, loc="lower right",
+               frameon=True, framealpha=0.95)
 
     fig.tight_layout()
     out = FIGURES_DIR / "fig_phase4_convergence.pdf"
@@ -313,13 +333,26 @@ def fig_per_instance(pi: pd.DataFrame, summary: pd.DataFrame) -> None:
     ax.set_title("Per-instance mean AOCC of each condition's best-found algorithm",
                  fontweight="bold")
 
-    # Annotate cells
+    # Per-column winner index (the condition with the highest mean AOCC for
+    # each instance) — used to highlight the leader in the heatmap.
+    winners = np.nanargmax(matrix.values, axis=0)
+
+    # Annotate cells (3 sig figs, bold text for the winning condition).
     for i in range(matrix.shape[0]):
         for j in range(matrix.shape[1]):
             v = matrix.values[i, j]
             if np.isfinite(v):
-                ax.text(j, i, f"{v:.2f}", ha="center", va="center",
-                        fontsize=8, color="white" if v < 0.85 else "#222222")
+                is_winner = winners[j] == i
+                ax.text(j, i, f"{v:.3f}", ha="center", va="center",
+                        fontsize=8,
+                        fontweight="bold" if is_winner else "normal",
+                        color="white" if v < 0.85 else "#222222")
+
+    # Outline the winning cell on each instance with a thin black box.
+    for j, i in enumerate(winners):
+        ax.add_patch(mpatches.Rectangle((j - 0.5, i - 0.5), 1, 1,
+                                        fill=False, edgecolor="#222222",
+                                        linewidth=1.6, zorder=5))
 
     cbar = fig.colorbar(im, ax=ax, fraction=0.025, pad=0.01)
     cbar.set_label("Mean AOCC (10 seeds)")
@@ -381,16 +414,95 @@ def fig_failure_by_gen(df: pd.DataFrame) -> None:
     fig, ax = plt.subplots(figsize=(9, 4.5))
     for c in CONDITIONS:
         sub = rate[rate.condition == c]
-        ax.plot(sub.gen_bin, sub.rate, marker="o", linewidth=1.8,
-                markersize=7, color=COND_COLORS[c], label=COND_LABELS[c])
+        ax.plot(sub.gen_bin, sub.rate, linewidth=1.5,
+                color=COND_COLORS[c], label=COND_LABELS[c])
     ax.set_xlabel("Candidate generation (bin of 100)")
     ax.set_ylabel("Failure rate (%)")
     ax.set_title("Failure rate over time, by condition",
                  fontweight="bold")
-    ax.legend(loc="upper left", frameon=True, framealpha=0.95)
+    ax.legend(loc="upper left", fontsize=FONT_SIZE_LEGEND)
 
     fig.tight_layout()
     out = FIGURES_DIR / "fig_phase4_failure_by_gen.pdf"
+    fig.savefig(out, **SAVEFIG_KW)
+    plt.close(fig)
+    print(f"  Saved {out.name}")
+
+
+# ===========================================================================
+# Figure 5b — Failure-mode stacked bar (mirrors §5.1's fig_failure_modes)
+# Uses the same BLADE compile-and-smoke replay categories and palette mapping
+# as Phase 1, so identical categories appear in identical hues across §5.1
+# and §5.4.
+# ===========================================================================
+def fig_failure_modes_stacked() -> None:
+    """Stacked-bar failure-category breakdown by condition, sharing the
+    methodology and colour mapping with §5.1's fig_failure_modes."""
+    from analysis.export_figures import (  # noqa: WPS433
+        FAILURE_CATEGORIES_ORDER,
+        FAILURE_CATEGORY_COLORS,
+        FAILURE_CATEGORY_LABELS,
+    )
+
+    fail_csv = REPO_ROOT / "analysis" / "figs_phase4" / "p4_failure_modes.csv"
+    if not fail_csv.exists():
+        print(f"  WARNING: {fail_csv} missing; skipping")
+        return
+    fm = pd.read_csv(fail_csv)
+
+    cats_present = [c for c in FAILURE_CATEGORIES_ORDER if c in set(fm["label"])]
+    counts = (fm.groupby(["condition", "label"]).size()
+              .unstack(fill_value=0)
+              .reindex(index=CONDITIONS, columns=cats_present, fill_value=0))
+    cat_colors = [FAILURE_CATEGORY_COLORS[c] for c in cats_present]
+    counts = counts.rename(columns=FAILURE_CATEGORY_LABELS)
+
+    fig, ax = plt.subplots(figsize=(9, 5))
+    counts.plot(kind="bar", stacked=True, ax=ax,
+                color=cat_colors, edgecolor="none", linewidth=0)
+
+    ax.set_xticklabels([COND_LABELS[c] for c in CONDITIONS], rotation=0)
+    ax.set_xlabel("")
+    ax.set_ylabel("Number of Failures")
+    ax.set_title("Failure Categories per Condition (all seeds pooled)",
+                 fontweight="bold")
+    ax.legend(loc="upper right", fontsize=FONT_SIZE_LEGEND)
+
+    fig.tight_layout()
+    out = FIGURES_DIR / "fig_phase4_failure_modes.pdf"
+    fig.savefig(out, **SAVEFIG_KW)
+    plt.close(fig)
+    print(f"  Saved {out.name}")
+
+
+# ===========================================================================
+# Figure 5c — Cumulative failure-rate over generations (experimental view)
+# ===========================================================================
+def fig_failure_cumulative(df: pd.DataFrame) -> None:
+    """Running cumulative failure rate by generation: at gen t, plots
+    100 * (failures up to t pooled across seeds) / (attempts up to t)."""
+    fig, ax = plt.subplots(figsize=(9, 4.8))
+    for c in CONDITIONS:
+        sub = df[df.condition == c]
+        per_gen = (sub.groupby("generation")
+                   .agg(n=("run_status", "size"),
+                        fail=("run_status", lambda s: (s == "failure").sum()))
+                   .reset_index()
+                   .sort_values("generation"))
+        per_gen["cum_fail"] = per_gen["fail"].cumsum()
+        per_gen["cum_n"] = per_gen["n"].cumsum()
+        per_gen["cum_rate"] = 100 * per_gen["cum_fail"] / per_gen["cum_n"]
+        ax.plot(per_gen["generation"], per_gen["cum_rate"],
+                color=COND_COLORS[c], linewidth=1.5, label=COND_LABELS[c])
+
+    ax.set_xlabel("Candidate generation")
+    ax.set_ylabel("Cumulative failure rate (%)")
+    ax.set_title("Cumulative failure rate by condition", fontweight="bold")
+    ax.set_xlim(0, BUDGET)
+    ax.legend(loc="best", fontsize=FONT_SIZE_LEGEND)
+
+    fig.tight_layout()
+    out = FIGURES_DIR / "fig_phase4_failure_cumulative.pdf"
     fig.savefig(out, **SAVEFIG_KW)
     plt.close(fig)
     print(f"  Saved {out.name}")
@@ -419,105 +531,14 @@ def fig_behavioural(df: pd.DataFrame) -> None:
             colors.append(COND_COLORS[c])
 
         labels = [COND_LABELS[c] for c in CONDITIONS]
-        parts = ax.violinplot(groups, showmedians=False, showextrema=False,
-                              widths=0.85)
-        for body, c in zip(parts["bodies"], colors):
-            body.set_facecolor(c)
-            body.set_edgecolor("none")
-            body.set_alpha(0.55)
-        # Median line
-        for i, vals in enumerate(groups):
-            if len(vals) == 0:
-                continue
-            m = np.median(vals)
-            ax.plot([i + 1 - 0.28, i + 1 + 0.28], [m, m],
-                    color="#222222", linewidth=1.6, zorder=4)
-
-        ax.set_xticks(range(1, len(CONDITIONS) + 1))
+        _styled_boxplot(ax, groups, labels, colors, widths=0.5)
         ax.set_xticklabels(labels, fontsize=FONT_SIZE_TICK - 1, rotation=20,
                            ha="right")
         ax.set_title(FEATURE_LABELS[feat], fontweight="bold",
                      fontsize=FONT_SIZE_LABEL)
 
-    fig.suptitle("Behavioural feature distributions across conditions (valid candidates only)",
-                 fontweight="bold", fontsize=FONT_SIZE_TITLE, y=1.02)
     fig.tight_layout()
     out = FIGURES_DIR / "fig_phase4_behavioural.pdf"
-    fig.savefig(out, **SAVEFIG_KW)
-    plt.close(fig)
-    print(f"  Saved {out.name}")
-
-
-# ===========================================================================
-# Figure 7 — Budget-to-threshold strip plot
-# ===========================================================================
-def fig_budget_threshold(df: pd.DataFrame) -> None:
-    final = (df.groupby(["condition", "seed"])
-             .agg(final_best=("best_so_far", "last"))
-             .reset_index())
-    threshold = final.loc[final.condition == "vanilla", "final_best"].median()
-
-    rows = []
-    for c in CONDITIONS:
-        for seed in SEEDS:
-            sub = df[(df.condition == c) & (df.seed == seed)]
-            if sub.empty:
-                continue
-            mask = sub["best_so_far"] >= threshold
-            if mask.any():
-                gen = int(sub.loc[mask, "generation"].iloc[0])
-                rows.append({"condition": c, "seed": seed, "gen": gen,
-                             "reached": True})
-            else:
-                rows.append({"condition": c, "seed": seed, "gen": BUDGET,
-                             "reached": False})
-    bt = pd.DataFrame(rows)
-
-    fig, ax = plt.subplots(figsize=(8.5, 4.8))
-    rng = np.random.default_rng(42)
-    for i, c in enumerate(CONDITIONS):
-        sub = bt[bt.condition == c]
-        x = i + 1 + rng.normal(0, 0.05, size=len(sub))
-        # Reached seeds: filled marker
-        reached = sub[sub.reached]
-        not_reached = sub[~sub.reached]
-        ax.scatter(x[sub.reached.values], reached.gen.values,
-                   color=COND_COLORS[c], s=70, alpha=0.85,
-                   edgecolor="none", zorder=3)
-        ax.scatter(x[(~sub.reached).values], not_reached.gen.values,
-                   facecolor="white", edgecolor=COND_COLORS[c],
-                   s=70, linewidths=1.5, zorder=3)
-
-        # Median bar (across reached seeds only)
-        if len(reached):
-            m = np.median(reached.gen.values)
-            ax.plot([i + 1 - 0.24, i + 1 + 0.24], [m, m],
-                    color="#333333", linewidth=2.0, zorder=4)
-        # Reached fraction annotation
-        n_r = len(reached)
-        n_t = len(sub)
-        ax.text(i + 1, BUDGET + 18, f"{n_r}/{n_t} reached",
-                ha="center", fontsize=FONT_SIZE_TICK)
-
-    ax.set_xticks(range(1, len(CONDITIONS) + 1))
-    ax.set_xticklabels([COND_LABELS[c] for c in CONDITIONS])
-    ax.set_ylabel("Candidate generation to reach threshold")
-    ax.set_xlabel("")
-    ax.set_ylim(-15, BUDGET + 60)
-    ax.set_title(f"Budget to reach vanilla median final AOCC ({threshold:.3f})",
-                 fontweight="bold")
-
-    legend_elements = [
-        mpatches.Patch(facecolor="#666666", edgecolor="none",
-                       label="Threshold reached"),
-        mpatches.Patch(facecolor="white", edgecolor="#666666",
-                       label="Never reached (capped at 500)"),
-    ]
-    ax.legend(handles=legend_elements, loc="upper left",
-              frameon=True, framealpha=0.95)
-
-    fig.tight_layout()
-    out = FIGURES_DIR / "fig_phase4_budget_threshold.pdf"
     fig.savefig(out, **SAVEFIG_KW)
     plt.close(fig)
     print(f"  Saved {out.name}")
@@ -553,11 +574,14 @@ def main() -> None:
     print("[Stage 4] fig_phase4_failure_by_gen.pdf")
     fig_failure_by_gen(df)
 
+    print("[Stage 4] fig_phase4_failure_modes.pdf")
+    fig_failure_modes_stacked()
+
+    print("[Stage 4] fig_phase4_failure_cumulative.pdf")
+    fig_failure_cumulative(df)
+
     print("[Stage 4] fig_phase4_behavioural.pdf")
     fig_behavioural(df)
-
-    print("[Stage 4] fig_phase4_budget_threshold.pdf")
-    fig_budget_threshold(df)
 
     print("\n[Stage 4] Loading per-instance log.jsonl ...")
     pi = load_per_instance()

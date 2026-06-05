@@ -6,7 +6,7 @@
 \chapter{Behavioural Feature Design}
 \label{ch:features}
 
-This chapter defines the behavioural feature vocabulary used throughout the thesis. \Cref{sec:features:principles} states the criteria that guided feature design and selection. The remaining sections present the 32 resulting features, organised by origin: inherited metrics, step-size and movement dynamics, information-theoretic measures, adapted population dynamics, and features new to the optimisation literature.
+This chapter defines the behavioural feature set used throughout the thesis. \Cref{sec:features:principles} states the criteria that guided feature design and selection. The remaining sections present the 32 resulting features, organised by origin and function: inherited metrics, step-size and movement dynamics, information-theoretic measures, adapted population dynamics, and features new to the optimisation literature.
 
 Every feature is computed from a single trajectory, the ordered sequence of candidate solutions that an algorithm evaluates together with their fitness values. Formally, a trajectory is a sequence $\{(x_t, y_t)\}_{t=1}^{T}$ where $x_t \in \mathbb{R}^d$ is the $t$-th candidate solution with decision variables $x_t^{(0)}, \ldots, x_t^{(d-1)}$, and $y_t = \mathcal{F}(x_t)$ is its fitness. The best-so-far fitness at evaluation~$t$ is denoted $f^*_t = \min_{s \le t} y_s$. Throughout this thesis, trajectories are collected over $T = 2{,}000 \times d$ evaluations in $d = 5$ dimensions with bounds $[-5, 5]$, giving $T = 10{,}000$ evaluations per trajectory.
 
@@ -149,15 +149,15 @@ a candidate algorithm moves through decision space.  Step-size statistics
 (mean, standard deviation, OLS slope) and directional persistence are
 basic trajectory descriptors.  Step-size statistics in particular are
 common in time-series feature libraries such as
-\texttt{tsfresh}~\cite{christ2018tsfresh}, and de~Nobel et
+\texttt{tsfresh}~\cite{christ2018tsfresh}. De~Nobel et
 al.~\cite{deNobel2021tsfresh} applied \texttt{tsfresh} to CMA-ES internal
-strategy parameters (step-size $\sigma$, evolution paths)---though
+strategy parameters (step-size $\sigma$, evolution paths), though
 notably none of the simple statistics over $\sigma$ that they considered
 were retained by their feature selector.  We compute analogous statistics
 directly on Euclidean step magnitudes $\lVert x_{t+1} - x_t \rVert$ from
 the trajectory, which is algorithm-agnostic rather than CMA-ES-specific.
-Directional persistence---the mean cosine similarity between consecutive
-displacement vectors---is a standard descriptor in random-walk and
+Directional persistence, the mean cosine similarity between consecutive
+displacement vectors, is a standard descriptor in random-walk and
 movement-ecology analyses~\cite{codling2008randomwalk}.  Let
 $s_t = \lVert x_{t+1} - x_t \rVert$ denote the Euclidean step size at
 evaluation~$t$.

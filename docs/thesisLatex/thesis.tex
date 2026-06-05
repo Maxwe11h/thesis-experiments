@@ -105,8 +105,16 @@ Behavioural Feedback for LLM-Driven\\Metaheuristic Evolution\par}
 {\small Supervised by Dr.\ Niki van Stein\par}
 \vspace{0.15cm}
 {\small \today\par}
-\vspace{0.8cm}
+\vspace{0.6cm}
 \end{center}
+
+\begin{center}
+\begin{minipage}{0.92\textwidth}
+\small
+\noindent\textbf{Abstract.}\quad The LLaMEA framework embeds a large language model in an evolutionary loop to generate optimisation algorithms, with the Area Over the Convergence Curve (AOCC), a single scalar value, as its only feedback signal. Recent work has shown that augmenting feedback with structural features extracted from the algorithm's source code improves performance, but the analogous question for \emph{behavioural} features (descriptors of the search trajectory the algorithm produces when it runs) has remained open. This thesis addresses that question through a four-stage pipeline. Stage one screens ten LLMs and identifies Gemini 3 Flash as the strongest combination of quality, reliability, and cost. Stage two reduces a 32-feature behavioural vocabulary to a tractable subset of ten via tri-criterion consensus. Stage three compares neutral, directional, and comparative framings of each behavioural feature on Gemini 3 Flash across 29 conditions. Stage four is a head-to-head full-benchmark comparison of behavioural, structural (LLaMEA-SAGE), and combined feedback against vanilla AOCC-only on a 20-function MA-BBOB set with 10 seeds per condition. We find that neutral framing of behavioural features, reporting the feature value without prescriptive advice, consistently outperforms the prescriptive variants, and that prescriptive feedback steers the median feature value in the advised direction in only 37\% of cases despite empirically grounded advice. On the stage four benchmark, all three feedback-augmented conditions outperform vanilla LLaMEA with the decisive effect being variance reduction. Combined behavioural and structural feedback shrinks seed-to-seed standard deviation by roughly a factor of five (Levene $p = 0.030$, the only Stage~4 contrast to clear $\alpha = 0.05$), and the three feedback conditions split 19 of 20 leaderboard wins between them. Re-evaluated on the full $1{,}000$-instance MA-BBOB pool, all four LLM-generated winning algorithms outperform a CMA-ES baseline across $d \in \{5, 10, 20\}$. Trajectory-based behavioural feedback does guide LLMs to design better optimisation algorithms, but the improvement manifests primarily as reduced failure-mode variance rather than as a large mean performance lift.
+\end{minipage}
+\end{center}
+\vspace{0.6cm}
 }]
 
 % ---------- Content ----------
@@ -115,6 +123,8 @@ Behavioural Feedback for LLM-Driven\\Metaheuristic Evolution\par}
 \input{chapters/ch3_features}
 \input{chapters/ch4_methodology}
 \input{chapters/ch5_results}
+\input{chapters/ch6_discussion}
+\input{chapters/ch7_conclusion}
 
 % ---------- References ----------
 \bibliographystyle{unsrt}

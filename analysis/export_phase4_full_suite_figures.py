@@ -136,6 +136,15 @@ def _aocc(curves: np.ndarray) -> np.ndarray:
     return (1.0 - (log_curve - log_lb) / (log_ub - log_lb)).mean(axis=1)
 
 
+def _final_attainment(curves: np.ndarray) -> np.ndarray:
+    """Per-run terminal normalised coverage: the AOCC normalisation applied to
+    the final best-so-far value only (the right edge of the EAF curves). Shares
+    `stack_curves`' NaN handling, so it is consistent with `_aocc`."""
+    log_lb, log_ub = np.log10(TARGET_LB), np.log10(TARGET_UB)
+    log_final = np.log10(np.clip(curves[:, -1], TARGET_LB, TARGET_UB))
+    return 1.0 - (log_final - log_lb) / (log_ub - log_lb)
+
+
 # ---------------------------------------------------------------------------
 # ECDF / EAF computation
 # ---------------------------------------------------------------------------
@@ -247,6 +256,7 @@ def fig_final_aocc() -> pd.DataFrame:
             df = load_shard(alg, dim)
             curves = stack_curves(df)
             vals = _aocc(curves)
+            fvals = _final_attainment(curves)
             data.append(vals)
             labels.append(ALG_LABELS[alg])
             colors.append(ALG_COLORS[alg])
@@ -260,6 +270,9 @@ def fig_final_aocc() -> pd.DataFrame:
                 "median": float(np.median(vals)),
                 "p25": float(np.quantile(vals, 0.25)),
                 "p75": float(np.quantile(vals, 0.75)),
+                "final_att_mean": float(fvals.mean()),
+                "final_att_std": float(fvals.std(ddof=1)),
+                "final_att_median": float(np.median(fvals)),
             })
         _styled_boxplot(ax, data, labels, colors)
         ax.set_title(f"$d = {dim}$")
