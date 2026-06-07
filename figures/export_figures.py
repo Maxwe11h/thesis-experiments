@@ -46,7 +46,7 @@ warnings.filterwarnings("ignore")
 # ---------------------------------------------------------------------------
 SCRIPT_DIR = Path(__file__).resolve().parent
 REPO_ROOT = SCRIPT_DIR.parent
-FIGURES_DIR = REPO_ROOT / "docs" / "thesisLatex" / "figures"
+FIGURES_DIR = REPO_ROOT / "thesis" / "figures"
 RESULTS_PHASE1 = REPO_ROOT / "results_phase1"
 RESULTS_PHASE3 = REPO_ROOT / "results_phase3"
 WEIGHTS_CSV = REPO_ROOT / "BLADE" / "iohblade" / "benchmarks" / "BBOB" / "mabbob" / "weights.csv"

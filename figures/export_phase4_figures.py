@@ -39,7 +39,7 @@ warnings.filterwarnings("ignore")
 # ---------------------------------------------------------------------------
 SCRIPT_DIR = Path(__file__).resolve().parent
 REPO_ROOT = SCRIPT_DIR.parent
-FIGURES_DIR = REPO_ROOT / "docs" / "thesisLatex" / "figures"
+FIGURES_DIR = REPO_ROOT / "thesis" / "figures"
 RESULTS_DIR = REPO_ROOT / "results_phase4"
 
 sys.path.insert(0, str(REPO_ROOT))
