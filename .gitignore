@@ -54,6 +54,9 @@ BLADE/iohblade/problems/venvs/
 *.lot
 
 # Thesis PDF output
-docs/thesisLatex/thesis.pdf
+thesis/thesis.pdf
 # Coverage data
 .coverage
+
+# Archived (superseded/one-off) results
+results_archive/
