@@ -6,7 +6,7 @@ Companion to `supervisor_notes_2026-04-21.md`. Work through it top to bottom. Ti
 
 1. Read `supervisor_notes_2026-04-21.md` (raw feedback) and this file.
 2. Find the first unchecked `[ ]` in Step 3 below.
-3. Open the corresponding chapter file in `docs/thesisLatex/chapters/` and the PDF (`~/Downloads/draft-04-2026.pdf`) side by side.
+3. Open the corresponding chapter file in `thesis/chapters/` and the PDF (`~/Downloads/draft-04-2026.pdf`) side by side.
 4. Make edits → tick the box → add a short "done: …" note.
 5. Commit per chapter or per logical group (not per tiny nitpick).
 

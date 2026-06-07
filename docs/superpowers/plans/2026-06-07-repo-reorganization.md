@@ -14,6 +14,14 @@
 
 > **Environment caveat:** Runtime smoke checks (import, `--list`, export scripts, `pytest`, `latexmk`) require the conda env with BLADE+LLaMEA installed. If executing on a machine without that env, perform the **structural** checks (git status/log, grep for stale references) and defer runtime smokes, noting which were deferred.
 
+> **Execution deviations (what actually happened):** Verification surfaced fixes beyond the planned tasks, each in its own commit:
+> - `test_gemini.py` was renamed to **`tests/check_gemini.py`** (not `tests/test_gemini.py` as written below): the script has unguarded top-level `sys.exit(1)`, so pytest auto-discovery (`test_*.py`) aborted collection. Renaming keeps it in `tests/` per the spec's intent while excluding it from the suite.
+> - `figures/export_phase4_full_suite_figures.py` `LOCAL_FIG_DIR` was repointed from `SCRIPT_DIR/...` to `REPO_ROOT/"analysis"/"figs_phase4_full_suite"` (the script-relative path moved with the script); an accidental `figures/figs_phase4_full_suite/` commit was removed.
+> - `figures/export_phase4_figures.py` cross-module import fixed: `from analysis.export_figures` → `from figures.export_figures`.
+> - The latexmk build re-created `thesis/thesis.pdf`, which was committed before `.gitignore` was repointed; it was untracked (`git rm --cached`).
+> - Usage examples in `experiments/**.py` docstrings and the two `slurm/setup_*.sh` scripts were also updated to `python -m experiments.run.*` (the planned Task 9 covered only `docs/*.md`).
+> - Final review: APPROVED_WITH_NOTES; pytest 35 passed / 1 failed (the 1 failure is `TestIntegrationOllama` needing a live Ollama model — pre-existing env dependency, unrelated to the reorg).
+
 ---
 
 ## File structure after reorganization
