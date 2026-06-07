@@ -85,7 +85,7 @@ for cond in vanilla behavioural sage combined; do
         fi
 
         echo "[$(date '+%H:%M:%S')] Starting $cond seed-$seed"
-        python run_phase4.py "$cond" --seeds $seed --skip-complete \
+        python -m experiments.run.run_phase4 "$cond" --seeds $seed --skip-complete \
             > "logs/slurm/phase4-${cond}-s${seed}-${SLURM_JOB_ID}.log" 2>&1 &
         pids+=($!)
         labels+=("$cond/seed-$seed")

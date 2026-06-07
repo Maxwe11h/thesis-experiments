@@ -81,7 +81,7 @@ for cond in "${CONDITIONS[@]}"; do
         fi
 
         echo "[$(date '+%H:%M:%S')] Starting $cond seed-$seed"
-        python run_phase3.py "$cond" --seeds $seed \
+        python -m experiments.run.run_phase3 "$cond" --seeds $seed \
             > "logs/slurm/phase3-${cond}-s${seed}-${SLURM_JOB_ID}.log" 2>&1 &
         pids+=($!)
         labels+=("$cond/seed-$seed")

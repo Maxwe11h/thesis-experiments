@@ -74,7 +74,7 @@ for seed in 0 1 2 3 4 5 6 7 8 9; do
     fi
 
     echo "[$(date '+%H:%M:%S')] Starting $CONDITION seed-$seed"
-    python run_phase4.py "$CONDITION" --seeds $seed --skip-complete \
+    python -m experiments.run.run_phase4 "$CONDITION" --seeds $seed --skip-complete \
         > "logs/slurm/phase4-${CONDITION}-s${seed}-${SLURM_JOB_ID}.log" 2>&1 &
     pids+=($!)
     labels+=("$CONDITION/seed-$seed")

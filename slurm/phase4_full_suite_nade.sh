@@ -30,7 +30,7 @@ echo "NODE=$(hostname)"; echo "OUT=$PHASE4_FULL_SUITE_DIR"; echo "N_WORKERS=$N_W
 for DIM in "${DIMS[@]}"; do
   echo "--- SHARD START alg=$ALG dim=$DIM at $(date -Iseconds) ---"
   T0=$(date +%s)
-  $ENV/bin/python run_phase4_full_suite.py \
+  $ENV/bin/python -m experiments.run.run_phase4_full_suite \
     --algorithm "$ALG" --dim "$DIM" \
     --instance-start 0 --instance-end 1000 \
     --n-workers "$N_WORKERS"

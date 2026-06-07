@@ -121,7 +121,7 @@ for MODEL_TAG in $MODELS; do
 
     # Launch seeds in parallel, up to $PARALLEL_SEEDS at a time
     for seed in "${SEED_ARRAY[@]}"; do
-        python run_phase1.py "$MODEL_TAG" \
+        python -m experiments.run.run_phase1 "$MODEL_TAG" \
             --seeds "$seed" \
             --port "$OLLAMA_PORT" \
             --results-dir results_phase1 \
@@ -158,7 +158,7 @@ for MODEL_TAG in $MODELS; do
     echo "  $MODEL_TAG complete: ${MODEL_ELAPSED}s ($(( MODEL_ELAPSED / 3600 ))h $(( (MODEL_ELAPSED % 3600) / 60 ))m), $FAILED failures"
 
     # Generate summary CSVs
-    python run_phase1.py "$MODEL_TAG" --summarise --results-dir results_phase1 2>/dev/null || true
+    python -m experiments.run.run_phase1 "$MODEL_TAG" --summarise --results-dir results_phase1 2>/dev/null || true
 done
 
 TOTAL_ELAPSED=$(( SECONDS - TOTAL_START ))

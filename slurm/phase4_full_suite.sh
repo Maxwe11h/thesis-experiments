@@ -33,6 +33,6 @@ conda activate "$CONDA_ENV"
 cd "$REPO_DIR"
 
 mkdir -p logs/slurm
-python run_phase4_full_suite.py \
+python -m experiments.run.run_phase4_full_suite \
   --algorithm "$ALG" --dim "$DIM" \
   --instance-start "$START" --instance-end "$END"

@@ -86,7 +86,7 @@ echo ""
 # --- Run ---
 START=$SECONDS
 
-python run_phase3.py "$CONDITION" --seeds ${SEEDS_TO_RUN[*]}
+python -m experiments.run.run_phase3 "$CONDITION" --seeds ${SEEDS_TO_RUN[*]}
 
 ELAPSED=$(( SECONDS - START ))
 echo ""

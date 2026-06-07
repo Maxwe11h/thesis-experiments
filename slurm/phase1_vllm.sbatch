@@ -156,7 +156,7 @@ for MODEL_ENTRY in $MODELS; do
 
     # Launch seeds in parallel, up to $PARALLEL_SEEDS at a time
     for seed in "${SEED_ARRAY[@]}"; do
-        python run_phase1.py "$MODEL_TAG" \
+        python -m experiments.run.run_phase1 "$MODEL_TAG" \
             --seeds "$seed" \
             --custom-vllm "$HF_MODEL" \
             --vllm-base-url "$VLLM_BASE_URL" \
@@ -197,7 +197,7 @@ for MODEL_ENTRY in $MODELS; do
     wait "$VLLM_PID" 2>/dev/null || true
 
     # Generate summary CSVs
-    python run_phase1.py "$MODEL_TAG" --summarise --results-dir results_phase1 2>/dev/null || true
+    python -m experiments.run.run_phase1 "$MODEL_TAG" --summarise --results-dir results_phase1 2>/dev/null || true
 done
 
 TOTAL_ELAPSED=$(( SECONDS - TOTAL_START ))
