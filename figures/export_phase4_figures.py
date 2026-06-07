@@ -438,7 +438,7 @@ def fig_failure_by_gen(df: pd.DataFrame) -> None:
 def fig_failure_modes_stacked() -> None:
     """Stacked-bar failure-category breakdown by condition, sharing the
     methodology and colour mapping with §5.1's fig_failure_modes."""
-    from analysis.export_figures import (  # noqa: WPS433
+    from figures.export_figures import (  # noqa: WPS433
         FAILURE_CATEGORIES_ORDER,
         FAILURE_CATEGORY_COLORS,
         FAILURE_CATEGORY_LABELS,
