@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Export Stage 4 thesis figures from results_phase4/ to PDF.
 
-Mirrors the styling conventions in `analysis/export_figures.py`:
+Mirrors the styling conventions in `figures/export_figures.py`:
 serif fonts, no grid, edgeless bars, pastel boxplot internals, rounded stat
 callouts. Phase-4 condition colours stay as already established
 (vanilla=#888888, neutral=#2E86AB, sage=#E63946, combined=#6A4C93) per the
@@ -17,7 +17,7 @@ Produces:
   - fig_phase4_failure_cumulative.pdf   (cumulative failure rate over time)
   - fig_phase4_behavioural.pdf
 
-Usage: python analysis/export_phase4_figures.py
+Usage: python figures/export_phase4_figures.py
 """
 from __future__ import annotations
 
@@ -46,7 +46,7 @@ sys.path.insert(0, str(REPO_ROOT))
 FIGURES_DIR.mkdir(parents=True, exist_ok=True)
 
 # ---------------------------------------------------------------------------
-# Style — matches analysis/export_figures.py
+# Style — matches figures/export_figures.py
 # ---------------------------------------------------------------------------
 FONT_SIZE_BASE = 11
 FONT_SIZE_TITLE = 13

@@ -9,7 +9,7 @@ per-FE best-so-far curves) and produces:
   * fig_phase4_fullsuite_final_aocc.pdf (boxplot per dim)
   * analysis/figs_phase4_full_suite/p46_final_aocc_summary.csv
 
-Styling matches `analysis/export_phase4_figures.py` (serif, pastel boxes,
+Styling matches `figures/export_phase4_figures.py` (serif, pastel boxes,
 dark medians).
 """
 from __future__ import annotations
@@ -31,7 +31,7 @@ SCRIPT_DIR = Path(__file__).resolve().parent
 REPO_ROOT = SCRIPT_DIR.parent
 RESULTS_DIR = REPO_ROOT / "results_phase4_full_suite"
 THESIS_FIG_DIR = REPO_ROOT / "thesis" / "figures"
-LOCAL_FIG_DIR = SCRIPT_DIR / "figs_phase4_full_suite"
+LOCAL_FIG_DIR = REPO_ROOT / "analysis" / "figs_phase4_full_suite"
 THESIS_FIG_DIR.mkdir(parents=True, exist_ok=True)
 LOCAL_FIG_DIR.mkdir(parents=True, exist_ok=True)
 sys.path.insert(0, str(REPO_ROOT))
