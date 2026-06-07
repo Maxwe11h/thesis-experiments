@@ -1,0 +1,23 @@
+# Best-effort top-level Python dependencies, derived from imports across
+# experiments/, analysis/, and figures/. Versions intentionally unpinned;
+# Python >=3.11 is required (matches BLADE/LLaMEA).
+#
+# The BLADE and LLaMEA submodules carry their own dependency specs — install
+# them in editable mode after these:
+#     pip install -e ./BLADE -e ./LLaMEA
+#
+# Core scientific stack
+numpy
+pandas
+scipy
+scikit-learn
+matplotlib
+seaborn
+
+# Benchmarking / optimization
+ioh
+cma
+pyarrow
+
+# LLM API
+google-genai
