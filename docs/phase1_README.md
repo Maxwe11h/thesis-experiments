@@ -6,13 +6,13 @@ Screen multiple LLMs for their baseline algorithm-discovery capability on the MA
 
 ```bash
 # List available models
-python run_phase1.py --list
+python -m experiments.run.run_phase1 --list
 
 # Run all 5 seeds for one model
-python run_phase1.py qwen3.5-4b
+python -m experiments.run.run_phase1 qwen3.5-4b
 
 # Sanity check (fast, ~5 min)
-python run_phase1.py qwen3.5-4b --sanity
+python -m experiments.run.run_phase1 qwen3.5-4b --sanity
 ```
 
 ## Experiment design
@@ -76,7 +76,7 @@ If model names differ from what's in the registry, either:
 1. Edit `experiments/phase1_config.py` → `CANDIDATE_MODELS`, or
 2. Use `--custom-ollama` at the CLI:
    ```bash
-   python run_phase1.py my-tag --custom-ollama "actual-model-name:tag"
+   python -m experiments.run.run_phase1 my-tag --custom-ollama "actual-model-name:tag"
    ```
 
 ### Multi-GPU setup
@@ -95,13 +95,13 @@ OLLAMA_HOST=http://localhost:11435 ollama pull qwen3.5:27b
 Then use `OLLAMA_PORT=11435` when running:
 
 ```bash
-OLLAMA_PORT=11435 python run_phase1.py qwen3.5-27b
+OLLAMA_PORT=11435 python -m experiments.run.run_phase1 qwen3.5-27b
 ```
 
 ## CLI reference
 
 ```
-python run_phase1.py [models...] [options]
+python -m experiments.run.run_phase1 [models...] [options]
 
 positional arguments:
   models                Model tag(s) or 'all'
@@ -129,7 +129,7 @@ options:
 conda activate /local/$USER/conda_envs/thesis
 cd /local/$USER/thesis
 
-nohup python run_phase1.py qwen3.5-4b \
+nohup python -m experiments.run.run_phase1 qwen3.5-4b \
   > logs/phase1-qwen3.5-4b.log 2>&1 &
 ```
 
@@ -138,21 +138,21 @@ nohup python run_phase1.py qwen3.5-4b \
 **GPU 0 (port 11434):**
 
 ```bash
-nohup python run_phase1.py qwen3.5-4b qwen3.5-9b rnj-1-8b granite4-3b \
+nohup python -m experiments.run.run_phase1 qwen3.5-4b qwen3.5-9b rnj-1-8b granite4-3b \
   > logs/phase1-gpu0.log 2>&1 &
 ```
 
 **GPU 1 (port 11435):**
 
 ```bash
-OLLAMA_PORT=11435 nohup python run_phase1.py qwen3.5-27b devstral-small-2-24b olmo3-7b olmo3-30b \
+OLLAMA_PORT=11435 nohup python -m experiments.run.run_phase1 qwen3.5-27b devstral-small-2-24b olmo3-7b olmo3-30b \
   > logs/phase1-gpu1.log 2>&1 &
 ```
 
 **Gemini API (no GPU needed, can run anywhere):**
 
 ```bash
-GOOGLE_API_KEY=your-key-here nohup python run_phase1.py gemini-3-pro gemini-3-flash \
+GOOGLE_API_KEY=your-key-here nohup python -m experiments.run.run_phase1 gemini-3-pro gemini-3-flash \
   > logs/phase1-gemini.log 2>&1 &
 ```
 
@@ -160,7 +160,7 @@ GOOGLE_API_KEY=your-key-here nohup python run_phase1.py gemini-3-pro gemini-3-fl
 
 ```bash
 for seed in 0 1 2 3 4; do
-  nohup python run_phase1.py qwen3.5-4b --seeds $seed \
+  nohup python -m experiments.run.run_phase1 qwen3.5-4b --seeds $seed \
     > logs/phase1-qwen3.5-4b-seed${seed}.log 2>&1 &
 done
 ```
@@ -206,7 +206,7 @@ Runs 1 seed, 2 instances, 1 eval seed with a real model.
 ### CLI sanity mode
 
 ```bash
-python run_phase1.py qwen3.5-4b --sanity
+python -m experiments.run.run_phase1 qwen3.5-4b --sanity
 ```
 
 Runs: 2 instances, 1 eval seed, 1 run seed, 10 candidates. Takes ~10 minutes instead of hours.

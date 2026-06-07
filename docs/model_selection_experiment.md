@@ -85,19 +85,19 @@ ollama pull qwen2.5-coder:32b
 conda activate /local/$USER/conda_envs/thesis
 
 # All models sequentially:
-python run_model_selection.py all
+python -m experiments.run.legacy.run_model_selection all
 
 # Specific models:
-python run_model_selection.py qwen3-8b qwen2.5-coder-7b llama3.1-8b
+python -m experiments.run.legacy.run_model_selection qwen3-8b qwen2.5-coder-7b llama3.1-8b
 
 # With reduced eval for faster turnaround:
-python run_model_selection.py all --budget 50 --training-instances 5 --eval-seeds 3
+python -m experiments.run.legacy.run_model_selection all --budget 50 --training-instances 5 --eval-seeds 3
 
 # On a second GPU:
-OLLAMA_PORT=11435 python run_model_selection.py qwen3-14b codestral-22b qwen2.5-coder-32b
+OLLAMA_PORT=11435 python -m experiments.run.legacy.run_model_selection qwen3-14b codestral-22b qwen2.5-coder-32b
 
 # Custom model not in the predefined list:
-python run_model_selection.py deepseek-v2 --custom-model "deepseek-coder-v2:16b"
+python -m experiments.run.legacy.run_model_selection deepseek-v2 --custom-model "deepseek-coder-v2:16b"
 ```
 
 ### Parallel strategy (vibranium)
@@ -106,10 +106,10 @@ Run smaller models on one GPU and larger models on the other:
 
 ```bash
 # GPU 0 (port 11434): 8B models
-nohup python run_model_selection.py qwen3-8b qwen2.5-coder-7b llama3.1-8b > logs/model_sel_8b.log 2>&1 &
+nohup python -m experiments.run.legacy.run_model_selection qwen3-8b qwen2.5-coder-7b llama3.1-8b > logs/model_sel_8b.log 2>&1 &
 
 # GPU 1 (port 11435): 14-32B models
-OLLAMA_PORT=11435 nohup python run_model_selection.py qwen3-14b qwen2.5-coder-14b codestral-22b qwen2.5-coder-32b > logs/model_sel_large.log 2>&1 &
+OLLAMA_PORT=11435 nohup python -m experiments.run.legacy.run_model_selection qwen3-14b qwen2.5-coder-14b codestral-22b qwen2.5-coder-32b > logs/model_sel_large.log 2>&1 &
 ```
 
 ### Estimated time

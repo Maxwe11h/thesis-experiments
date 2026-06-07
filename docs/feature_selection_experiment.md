@@ -95,7 +95,7 @@ thesis/
     mabbob_problem.py      # MaBBOBProblem: evaluation with inner seed loop + behavioral metrics
     run_experiment.py      # CONDITIONS dict (12 entries), make_problem, make_method, run_condition
     trajectory_logger.py   # IOH logger capturing per-evaluation (x, y) traces
-  run_conditions.py        # CLI runner for arbitrary condition subsets
+  experiments/run/legacy/run_conditions.py        # CLI runner for arbitrary condition subsets
   setup_server.sh          # Server setup script for REL Compute nodes
   BLADE/                   # Submodule (fork): experiment infrastructure, LLM clients, behaviour_metrics
   LLaMEA/                  # Submodule: LLaMEA evolutionary algorithm framework
@@ -156,21 +156,21 @@ cd /local/$USER/thesis
 
 **Vibranium — group 1 (4 conditions):**
 ```bash
-nohup python run_conditions.py \
+nohup python -m experiments.run.legacy.run_conditions \
   vanilla avg_nearest_neighbor_distance dispersion avg_exploration_pct \
   > logs/group1.log 2>&1 &
 ```
 
 **Vibranium — group 2 (4 conditions):**
 ```bash
-nohup python run_conditions.py \
+nohup python -m experiments.run.legacy.run_conditions \
   avg_distance_to_best intensification_ratio avg_exploitation_pct average_convergence_rate \
   > logs/group2.log 2>&1 &
 ```
 
 **Duranium — group 3 (4 conditions):**
 ```bash
-nohup python run_conditions.py \
+nohup python -m experiments.run.legacy.run_conditions \
   avg_improvement success_rate longest_no_improvement_streak last_improvement_fraction \
   > logs/group3.log 2>&1 &
 ```

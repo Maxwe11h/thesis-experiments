@@ -77,13 +77,13 @@ OLLAMA_HOST=http://localhost:11435 ollama pull qwen3:8b
 **Group 1** (system Ollama, GPU 0, port 11434):
 
 ```bash
-nohup python run_conditions.py vanilla avg_nearest_neighbor_distance dispersion avg_exploration_pct > logs/group1.log 2>&1 &
+nohup python -m experiments.run.legacy.run_conditions vanilla avg_nearest_neighbor_distance dispersion avg_exploration_pct > logs/group1.log 2>&1 &
 ```
 
 **Group 2** (user Ollama, GPU 1, port 11435):
 
 ```bash
-OLLAMA_PORT=11435 nohup python run_conditions.py avg_distance_to_best intensification_ratio avg_exploitation_pct average_convergence_rate > logs/group2.log 2>&1 &
+OLLAMA_PORT=11435 nohup python -m experiments.run.legacy.run_conditions avg_distance_to_best intensification_ratio avg_exploitation_pct average_convergence_rate > logs/group2.log 2>&1 &
 ```
 
 ### Duranium
@@ -91,7 +91,7 @@ OLLAMA_PORT=11435 nohup python run_conditions.py avg_distance_to_best intensific
 **Group 3** (system Ollama, port 11434):
 
 ```bash
-nohup python run_conditions.py avg_improvement success_rate longest_no_improvement_streak last_improvement_fraction > logs/group3.log 2>&1 &
+nohup python -m experiments.run.legacy.run_conditions avg_improvement success_rate longest_no_improvement_streak last_improvement_fraction > logs/group3.log 2>&1 &
 ```
 
 ## Monitoring

@@ -147,19 +147,19 @@ Phase 3 uses the same model (gemini-3-flash), benchmark, strategy, initial popul
 
 ```bash
 # List all conditions
-python run_phase3.py --list
+python -m experiments.run.run_phase3 --list
 
 # Run one condition
-python run_phase3.py neutral-avg_improvement
+python -m experiments.run.run_phase3 neutral-avg_improvement
 
 # Run all neutral conditions
-python run_phase3.py neutral
+python -m experiments.run.run_phase3 neutral
 
 # Run everything
-python run_phase3.py all
+python -m experiments.run.run_phase3 all
 
 # Sanity check (2 instances, 1 seed, 10 candidates)
-python run_phase3.py neutral-avg_improvement --sanity
+python -m experiments.run.run_phase3 neutral-avg_improvement --sanity
 
 # Launch all conditions in parallel on server
 nohup bash run_phase3.sh > logs/phase3_all.log 2>&1 &

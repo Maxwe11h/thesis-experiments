@@ -173,7 +173,7 @@ sbatch --nodelist=ceratanium slurm/phase1_ollama.sbatch qwen3.5-4b "0 1 2"
 ### Run Gemini models (no GPU / no SLURM needed)
 
 ```bash
-GOOGLE_API_KEY=your-key python run_phase1.py gemini-3-pro gemini-3-flash
+GOOGLE_API_KEY=your-key python -m experiments.run.run_phase1 gemini-3-pro gemini-3-flash
 ```
 
 Run this from any machine with network access (laptop, vibranium, calcium).
