@@ -1,10 +1,10 @@
 #!/bin/bash
-# Launch all Gemini Phase 1 runs in parallel from a single process.
+# Launch all Phase 3 conditions in parallel (each condition runs seeds sequentially).
 #
 # Usage:
 #   conda activate /local/$USER/conda_envs/thesis
 #   cd /local/$USER/thesis
-#   nohup bash run_phase1_gemini.sh > logs/gemini_all.log 2>&1 &
+#   nohup bash run_phase3.sh > logs/phase3_all.log 2>&1 &
 
 set -uo pipefail
 
@@ -24,17 +24,21 @@ if [ -z "${GOOGLE_API_KEY:-}" ]; then
     exit 1
 fi
 
-MODELS="gemini-3-flash gemini-3-pro"
-SEEDS="0 1 2 3 4"
+mkdir -p logs
+
+# Get all condition tags
+CONDITIONS=$(python -c "
+from experiments.phase3_config import get_conditions
+for tag in get_conditions():
+    print(tag)
+")
 
 pids=()
-for model in $MODELS; do
-    for seed in $SEEDS; do
-        echo "[$(date '+%H:%M:%S')] Starting $model seed $seed"
-        python run_phase1.py "$model" --seeds "$seed" > "logs/${model}_s${seed}.log" 2>&1 &
-        pids+=($!)
-        sleep 10
-    done
+for cond in $CONDITIONS; do
+    echo "[$(date '+%H:%M:%S')] Starting $cond"
+    python -m experiments.run.run_phase3 "$cond" > "logs/phase3_${cond}.log" 2>&1 &
+    pids+=($!)
+    sleep 5  # stagger API calls
 done
 
 echo ""

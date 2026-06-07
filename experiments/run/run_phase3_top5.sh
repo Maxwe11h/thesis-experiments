@@ -123,7 +123,7 @@ for i in "${!QUEUE_COND[@]}"; do
 
     ((launched++))
     echo "[$(date '+%H:%M:%S')] [$launched/$total] Starting $cond  seeds=[$seeds]"
-    python run_phase3.py "$cond" --seeds $seeds \
+    python -m experiments.run.run_phase3 "$cond" --seeds $seeds \
         > "logs/phase3_${cond}.log" 2>&1 &
     sleep 3  # stagger API calls
 done
