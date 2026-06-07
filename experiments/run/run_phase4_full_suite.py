@@ -2,7 +2,7 @@
 shard. Designed for parallel SLURM submission via `slurm/phase4_full_suite.sh`.
 
 Usage:
-  python run_phase4_full_suite.py --algorithm sage_winner --dim 10 \\
+  python -m experiments.run.run_phase4_full_suite --algorithm sage_winner --dim 10 \\
       --instance-start 0 --instance-end 100
 """
 import argparse

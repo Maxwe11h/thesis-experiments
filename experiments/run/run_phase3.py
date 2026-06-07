@@ -2,16 +2,16 @@
 """Run the Phase 3 behavioural feature screening experiment.
 
 Usage:
-    python run_phase3.py --list
-    python run_phase3.py vanilla
-    python run_phase3.py neutral-avg_improvement
-    python run_phase3.py all
-    python run_phase3.py neutral          # all neutral conditions
-    python run_phase3.py directional      # all directional conditions
-    python run_phase3.py vanilla --sanity
+    python -m experiments.run.run_phase3 --list
+    python -m experiments.run.run_phase3 vanilla
+    python -m experiments.run.run_phase3 neutral-avg_improvement
+    python -m experiments.run.run_phase3 all
+    python -m experiments.run.run_phase3 neutral          # all neutral conditions
+    python -m experiments.run.run_phase3 directional      # all directional conditions
+    python -m experiments.run.run_phase3 vanilla --sanity
 
     # Generate summary CSVs for existing results:
-    python run_phase3.py --summarise
+    python -m experiments.run.run_phase3 --summarise
 """
 
 from experiments.phase3_experiment import main

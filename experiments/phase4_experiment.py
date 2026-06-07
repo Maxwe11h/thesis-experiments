@@ -314,22 +314,22 @@ def main():
         epilog="""\
 examples:
   # List all conditions
-  python run_phase4.py --list
+  python -m experiments.run.run_phase4 --list
 
   # Run one condition
-  python run_phase4.py vanilla
+  python -m experiments.run.run_phase4 vanilla
 
   # Run all conditions
-  python run_phase4.py all
+  python -m experiments.run.run_phase4 all
 
   # Sanity check
-  python run_phase4.py all --sanity
+  python -m experiments.run.run_phase4 all --sanity
 
   # Skip already-completed seeds
-  python run_phase4.py all --skip-complete
+  python -m experiments.run.run_phase4 all --skip-complete
 
   # Generate summary CSVs for existing results
-  python run_phase4.py --summarise
+  python -m experiments.run.run_phase4 --summarise
 """,
     )
     parser.add_argument(

@@ -2,11 +2,11 @@
 """Run the Phase 4 full benchmark comparison experiment.
 
 Usage:
-    python run_phase4.py --list
-    python run_phase4.py vanilla
-    python run_phase4.py all
-    python run_phase4.py all --sanity
-    python run_phase4.py --summarise
+    python -m experiments.run.run_phase4 --list
+    python -m experiments.run.run_phase4 vanilla
+    python -m experiments.run.run_phase4 all
+    python -m experiments.run.run_phase4 all --sanity
+    python -m experiments.run.run_phase4 --summarise
 """
 
 from experiments.phase4_experiment import main

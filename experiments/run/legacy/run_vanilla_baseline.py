@@ -5,9 +5,9 @@ Uses BLADE's Experiment for seed management, structured logging,
 and progress display. Results are saved to results/vanilla/.
 
 Usage:
-    python run_vanilla_baseline.py          # all 3 seeds
-    python run_vanilla_baseline.py 0        # seed 0 only
-    python run_vanilla_baseline.py 0 1      # seeds 0 and 1
+    python -m experiments.run.legacy.run_vanilla_baseline          # all 3 seeds
+    python -m experiments.run.legacy.run_vanilla_baseline 0        # seed 0 only
+    python -m experiments.run.legacy.run_vanilla_baseline 0 1      # seeds 0 and 1
 """
 
 import sys

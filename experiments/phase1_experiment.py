@@ -466,25 +466,25 @@ def main():
         epilog="""\
 examples:
   # List available models
-  python run_phase1.py --list
+  python -m experiments.run.run_phase1 --list
 
   # Run all 5 seeds for one model
-  python run_phase1.py qwen3.5-4b
+  python -m experiments.run.run_phase1 qwen3.5-4b
 
   # Run specific seeds
-  python run_phase1.py qwen3.5-4b --seeds 0 1
+  python -m experiments.run.run_phase1 qwen3.5-4b --seeds 0 1
 
   # Run all models
-  python run_phase1.py all
+  python -m experiments.run.run_phase1 all
 
   # Sanity check (2 instances, 1 eval seed, 1 run seed, 10 candidates)
-  python run_phase1.py qwen3.5-4b --sanity
+  python -m experiments.run.run_phase1 qwen3.5-4b --sanity
 
   # Custom Ollama model
-  python run_phase1.py my-model --custom-ollama "mistral:7b"
+  python -m experiments.run.run_phase1 my-model --custom-ollama "mistral:7b"
 
   # Gemini API model
-  GOOGLE_API_KEY=... python run_phase1.py gemini-3-pro
+  GOOGLE_API_KEY=... python -m experiments.run.run_phase1 gemini-3-pro
 """,
     )
     parser.add_argument(

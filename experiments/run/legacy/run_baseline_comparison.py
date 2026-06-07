@@ -5,7 +5,7 @@ Runs all seeds for each mode using BLADE's Experiment, then compares
 total wall-clock times.
 
 Usage:
-    python run_baseline_comparison.py
+    python -m experiments.run.legacy.run_baseline_comparison
 """
 
 import sys

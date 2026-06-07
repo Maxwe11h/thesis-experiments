@@ -2,8 +2,8 @@
 """Run a subset of experiment conditions.
 
 Usage:
-    python run_conditions.py vanilla dispersion success_rate avg_improvement
-    python run_conditions.py --list          # print all 12 condition names
+    python -m experiments.run.legacy.run_conditions vanilla dispersion success_rate avg_improvement
+    python -m experiments.run.legacy.run_conditions --list          # print all 12 condition names
 """
 
 import argparse

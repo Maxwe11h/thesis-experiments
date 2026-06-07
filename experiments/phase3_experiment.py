@@ -226,28 +226,28 @@ def main():
         epilog="""\
 examples:
   # List all conditions
-  python run_phase3.py --list
+  python -m experiments.run.run_phase3 --list
 
   # Run vanilla baseline
-  python run_phase3.py vanilla
+  python -m experiments.run.run_phase3 vanilla
 
   # Run one feature condition
-  python run_phase3.py neutral-avg_improvement
+  python -m experiments.run.run_phase3 neutral-avg_improvement
 
   # Run all conditions
-  python run_phase3.py all
+  python -m experiments.run.run_phase3 all
 
   # Run all neutral conditions
-  python run_phase3.py neutral
+  python -m experiments.run.run_phase3 neutral
 
   # Run all directional conditions
-  python run_phase3.py directional
+  python -m experiments.run.run_phase3 directional
 
   # Sanity check
-  python run_phase3.py vanilla --sanity
+  python -m experiments.run.run_phase3 vanilla --sanity
 
   # Generate summary CSVs for existing results
-  python run_phase3.py --summarise
+  python -m experiments.run.run_phase3 --summarise
 """,
     )
     parser.add_argument(
