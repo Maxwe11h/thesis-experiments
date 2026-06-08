@@ -1,36 +1,71 @@
 %
-% titlepage.tex -- Title page for the thesis
+% titlepage.tex -- Official LIACS Bachelor thesis title page (template 2025-2026)
 %
 
-\begin{titlepage}
-\centering
+\makeatletter
+\newcommand{\supervisor}[1]{\gdef\@supervisor{#1}}
+\newcommand{\@supervisor}{}
+\makeatother
 
-\vspace*{2cm}
+\makeatletter
+\newcommand{\secondsupervisor}[1]{\gdef\@secondsupervisor{#1}}
+\newcommand{\@secondsupervisor}{}
+\makeatother
 
-{\Large Leiden University \par}
-{\large Leiden Institute of Advanced Computer Science (LIACS) \par}
+\makeatletter
+\newcommand{\studentnumber}[1]{\gdef\@studentnumber{#1}}
+\newcommand{\@studentnumber}{}
+\makeatother
 
-\vspace{2cm}
+\makeatletter
+\newcommand{\thesistype}[1]{\gdef\@thesistype{#1}}
+\newcommand{\@thesistype}{}
+\makeatother
 
-\rule{\textwidth}{0.4pt}\par
-\vspace{0.8cm}
-{\LARGE \bfseries Beyond Scalar Fitness: \\ Behavioural Feedback for LLM-Driven \\ Metaheuristic Evolution \par}
-\vspace{0.8cm}
-\rule{\textwidth}{0.4pt}
+\makeatletter
+\newcommand{\studyprogram}[1]{\gdef\@studyprogram{#1}}
+\newcommand{\@studyprogram}{}
+\makeatother
 
-\vspace{2cm}
+% Redefine maketitle
+\makeatletter
+\renewcommand{\maketitle}{
+  \begin{titlepage}
 
-{\Large Max Harell \par}
+    \thispagestyle{empty}
 
-\vspace{1.5cm}
+    \vspace{1cm}
 
-{\large
-Bachelor Thesis in Computer Science \\[1em]
-Supervised by: Dr.\ Niki van Stein
-\par}
+    \noindent
+    \includegraphics{logoleiden} \\
+    \vspace{1cm}
 
-\vfill
+    % Title
+    \noindent {\Huge\bfseries \@title \par}
 
-{\large \today \par}
+    \vspace{2cm}
 
-\end{titlepage}
+    \noindent % Author
+    {\Large \@author ~(\@studentnumber) \par}
+
+    \vfill
+
+    \begin{large}
+
+    \noindent Supervisors:\\
+    \noindent { \@supervisor ~\& \@secondsupervisor \par}
+
+    \vspace*{2.8cm}
+    \noindent \textsc{\@thesistype -- \@studyprogram}
+
+    \vspace*{5mm}
+    \noindent Leiden Institute of Advanced Computer Science (LIACS) \\
+    \url{liacs.leidenuniv.nl}  \hfill {\large \@date \par}
+
+    \end{large}
+
+\newpage
+
+  \end{titlepage}
+}
+\makeatother

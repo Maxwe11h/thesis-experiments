@@ -41,12 +41,12 @@ sys.path.insert(0, str(REPO_ROOT))
 # ---------------------------------------------------------------------------
 plt.rcParams.update({
     "figure.figsize": (12, 4.5),
-    "font.size": 11,
-    "axes.titlesize": 13,
-    "axes.labelsize": 12,
-    "xtick.labelsize": 10,
-    "ytick.labelsize": 10,
-    "legend.fontsize": 9,
+    "font.size": 8,
+    "axes.titlesize": 9,
+    "axes.labelsize": 8.5,
+    "xtick.labelsize": 7,
+    "ytick.labelsize": 7,
+    "legend.fontsize": 7,
     "font.family": "serif",
     "text.usetex": False,
     "savefig.bbox": "tight",
@@ -54,7 +54,7 @@ plt.rcParams.update({
     "savefig.pad_inches": 0.05,
     "axes.spines.top": True,
     "axes.spines.right": True,
-    "axes.linewidth": 1.5,
+    "axes.linewidth": 0.8,
     "axes.grid": False,
 })
 SAVEFIG_KW = dict(bbox_inches="tight", dpi=300)
@@ -172,7 +172,7 @@ def compute_ecdf(curves: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
 # Figure 1 — ECDF / EAF per dim
 # ---------------------------------------------------------------------------
 def fig_ecdf() -> None:
-    fig, axes = plt.subplots(2, 3, figsize=(13, 7),
+    fig, axes = plt.subplots(2, 3, figsize=(9.5, 5.1),
                              sharex="col", sharey="row")
 
     # Pre-compute curves so each (alg, dim) shard is loaded only once.
@@ -247,7 +247,7 @@ def _styled_boxplot(ax, data, labels, colors, *, widths=0.55):
 
 
 def fig_final_aocc() -> pd.DataFrame:
-    fig, axes = plt.subplots(1, 3, figsize=(13, 4.4), sharey=True)
+    fig, axes = plt.subplots(1, 3, figsize=(9.5, 3.2), sharey=True)
     rows = []
 
     for ax, dim in zip(axes, DIMS):

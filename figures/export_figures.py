@@ -62,12 +62,15 @@ FIGURES_DIR.mkdir(parents=True, exist_ok=True)
 PASTEL_PALETTE = ["#4e79a7", "#f28e2b", "#e15759", "#76b7b2", "#59a14f",
                   "#edc948", "#b07aa1", "#ff9da7", "#9c755f", "#bab0ac"]
 
-# Consistent font sizes
-FONT_SIZE_BASE = 11
-FONT_SIZE_TITLE = 13
-FONT_SIZE_LABEL = 12
-FONT_SIZE_TICK = 10
-FONT_SIZE_LEGEND = 9
+# Consistent font sizes. Figures are saved with bbox="tight" and then scaled to
+# column/text width in LaTeX, so the on-page content-to-text ratio is governed by
+# (axes inches / font pt) here. Keep fonts modest so the plotted data dominates and
+# text lands at a readable ~7-8pt after LaTeX scales to column width.
+FONT_SIZE_BASE = 8
+FONT_SIZE_TITLE = 9
+FONT_SIZE_LABEL = 8.5
+FONT_SIZE_TICK = 7
+FONT_SIZE_LEGEND = 7
 
 plt.rcParams.update({
     "figure.figsize": (12, 6),
@@ -84,9 +87,15 @@ plt.rcParams.update({
     "savefig.pad_inches": 0.05,
     "axes.spines.top": True,
     "axes.spines.right": True,
-    "axes.linewidth": 1.5,
+    "axes.linewidth": 0.8,
     "axes.grid": False,
 })
+
+def _grid(ax, axis="both"):
+    """Light dotted reference grid drawn behind the data."""
+    ax.set_axisbelow(True)
+    ax.grid(True, axis=axis, which="major", linestyle=":",
+            linewidth=0.6, color="#cccccc", alpha=0.9)
 
 SAVEFIG_KW = dict(bbox_inches="tight", dpi=300)
 
@@ -336,20 +345,23 @@ def fig_model_screening(df):
         return np.array(padded)
 
     # --- Combined figure ---
-    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(20, 7),
+    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(9.5, 3.4),
                                     gridspec_kw={"width_ratios": [1, 1.3]})
+    _grid(ax1, "x")
+    _grid(ax2, "both")
 
     # Panel (a): Model ranking bar chart
     models_sorted = summary["model"].tolist()
     y_pos = np.arange(len(models_sorted))
     colors = [MODEL_COLORS[m] for m in models_sorted]
     ax1.barh(y_pos, summary["aocc_mean"], xerr=summary["aocc_std"],
-             color=colors, edgecolor="none", capsize=3)
+             color=colors, edgecolor="none",
+             capsize=2, error_kw={"elinewidth": 0.7, "capthick": 0.7})
     ax1.set_yticks(y_pos)
     ax1.set_yticklabels(models_sorted)
     ax1.set_xlabel("Mean Best AOCC")
     ax1.set_title("(a) Model Ranking (mean ± std across 5 seeds)",
-                  fontweight="bold")
+                  fontsize=8.5, fontweight="bold")
     ax1.invert_yaxis()
 
     # Panel (b): Convergence curves
@@ -364,10 +376,10 @@ def fig_model_screening(df):
         ax2.plot(x, mean_curve, label=model_tag, color=color, linewidth=1.5)
         ax2.fill_between(x, mean_curve - std_curve, mean_curve + std_curve,
                          alpha=0.15, color=color)
-    ax2.set_xlabel("Evaluation")
+    ax2.set_xlabel("Candidate evaluation")
     ax2.set_ylabel("Best-so-far AOCC")
     ax2.set_title("(b) Convergence (mean ± 1 std across 5 seeds)",
-                  fontweight="bold")
+                  fontsize=8.5, fontweight="bold")
     ax2.legend(bbox_to_anchor=(1.01, 1), loc="upper left", fontsize=FONT_SIZE_LEGEND,
                borderaxespad=0, frameon=True)
 
@@ -411,7 +423,7 @@ def fig_tsne_behavioral(df):
     model_means = proj_data.groupby("model")["fitness"].mean().sort_values(ascending=False)
     models_sorted = model_means.index.tolist()
 
-    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(20, 8))
+    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(9.5, 3.8))
 
     # Panel (a): colored by model
     for model in models_sorted:
@@ -422,8 +434,8 @@ def fig_tsne_behavioral(df):
     ax1.set_xlabel("t-SNE 1")
     ax1.set_ylabel("t-SNE 2")
     ax1.set_title("(a) Colored by model", fontweight="bold")
-    ax1.legend(fontsize=FONT_SIZE_LEGEND, loc="best", ncol=2,
-               markerscale=1.5, framealpha=0.9)
+    ax1.legend(fontsize=5.5, loc="lower right", ncol=2, markerscale=0.7,
+               columnspacing=0.8, handletextpad=0.3, framealpha=0.9)
 
     # Panel (b): colored by AOCC
     order = np.argsort(fitness_vals)  # plot low AOCC first so high on top
@@ -480,8 +492,54 @@ for _cat, _feats in _FEAT_CATEGORIES.items():
     for _f in _feats:
         _FEAT_TO_CAT[f"bm_{_f}"] = _cat
 
-# Shared figsize so all three render at the same width in LaTeX
-_FIG_W, _FIG_H = 14, 10
+# Shared figsize so all three render at the same width in LaTeX.
+# Sized near a single \columnwidth (~3.3in) so it is barely downscaled and
+# labels stay legible; the modest height keeps a non-skinny aspect.
+_FIG_W, _FIG_H = 3.6, 4.8
+
+# Compact, still-readable labels for the dense single-column bar charts. Long
+# snake_case names blow out the label gutter and squeeze the bars; these keep
+# the meaning while giving the bars room.
+SHORT_BM = {
+    "avg_improvement": "avg improv",
+    "success_rate": "success rate",
+    "improvement_spatial_correlation": "improv spatial corr",
+    "intensification_ratio": "intensif ratio",
+    "step_size_autocorrelation": "step autocorr",
+    "fitness_plateau_fraction": "plateau frac",
+    "avg_distance_to_best": "dist to best",
+    "fitness_sample_entropy": "sample entropy",
+    "half_convergence_time": "half-conv time",
+    "fitness_autocorrelation": "fit autocorr",
+    "avg_exploitation_pct": "exploit %",
+    "avg_exploration_pct": "explore %",
+    "step_size_mean": "step mean",
+    "x_spread_early": "x-spread early",
+    "x_spread_late": "x-spread late",
+    "step_size_std": "step std",
+    "f_range_late": "f-range late",
+    "dimension_convergence_heterogeneity": "dim conv heterog",
+    "avg_nearest_neighbor_distance": "nn distance",
+    "longest_no_improvement_streak": "no-improv streak",
+    "dispersion": "dispersion",
+    "f_range_ratio": "f-range ratio",
+    "improvement_burstiness": "improv burstiness",
+    "f_range_early": "f-range early",
+    "fitness_permutation_entropy": "perm entropy",
+    "centroid_drift": "centroid drift",
+    "average_convergence_rate": "conv rate",
+    "last_improvement_fraction": "last-improv frac",
+    "step_size_trend": "step trend",
+    "spread_ratio": "spread ratio",
+    "directional_persistence": "direction persist",
+    "fitness_lempel_ziv_complexity": "LZ complexity",
+}
+
+
+def _short(feat):
+    """Compact, readable y-axis label for a (possibly bm_-prefixed) feature."""
+    f = feat.replace("bm_", "")
+    return SHORT_BM.get(f, f.replace("_", " "))
 
 
 def _cat_color(feat):
@@ -491,7 +549,10 @@ def _cat_color(feat):
 def _cat_legend(ax):
     elems = [mpatches.Patch(facecolor=c, edgecolor="none", label=cat)
              for cat, c in _CAT_COLORS.items()]
-    ax.legend(handles=elems, loc="lower right", fontsize=FONT_SIZE_LEGEND)
+    # Below the axes, clear of the x-axis label, so it never covers the bars.
+    ax.legend(handles=elems, loc="upper center", bbox_to_anchor=(0.5, -0.14),
+              ncol=2, fontsize=6.5, frameon=False, columnspacing=1.2,
+              handlelength=1.1, handletextpad=0.4, borderaxespad=0.0)
 
 
 def fig_spearman(df):
@@ -515,21 +576,20 @@ def fig_spearman(df):
     rho_df["sig"] = rho_df["p_bonf"].apply(
         lambda p: "***" if p < 0.001 else ("**" if p < 0.01 else ("*" if p < 0.05 else "")))
 
-    fig, ax = plt.subplots(figsize=(_FIG_W, _FIG_H))
+    fig, ax = plt.subplots(figsize=(4.2, 4.8))
+    _grid(ax, "x")
     colors = [_cat_color(f) for f in rho_df["feature"]]
     ax.barh(range(len(rho_df)), rho_df["rho"].values, color=colors, edgecolor="none")
-    for i, (_, row) in enumerate(rho_df.iterrows()):
-        offset = 0.01 if row["rho"] >= 0 else -0.01
-        ha = "left" if row["rho"] >= 0 else "right"
-        ax.text(row["rho"] + offset, i, row["sig"], va="center", ha=ha,
-                fontsize=FONT_SIZE_LEGEND)
     ax.axvline(0, color="k", lw=0.5)
+    for s in ax.spines.values():
+        s.set_linewidth(0.8)
     ax.set_yticks(range(len(rho_df)))
-    ax.set_yticklabels([f.replace("bm_", "") for f in rho_df["feature"]],
-                       fontsize=FONT_SIZE_TICK)
-    ax.set_xlabel("Spearman $\\rho$ with AOCC")
+    ax.set_yticklabels([_short(f) for f in rho_df["feature"]],
+                       fontsize=8)
+    ax.tick_params(axis="x", labelsize=7.5)
+    ax.set_xlabel("Spearman $\\rho$ with AOCC", fontsize=8.5)
     ax.set_title("Spearman Correlation with AOCC (Bonferroni-corrected)",
-                 fontweight="bold")
+                 fontsize=7.5, fontweight="bold")
     ax.invert_yaxis()
     _cat_legend(ax)
     outpath = FIGURES_DIR / "fig_spearman.pdf"
@@ -562,15 +622,20 @@ def fig_rf_importance(df):
     }).sort_values("importance", ascending=False)
 
     fig, ax = plt.subplots(figsize=(_FIG_W, _FIG_H))
+    _grid(ax, "x")
     colors = [_cat_color(f) for f in perm_df["feature"]]
     ax.barh(range(len(perm_df)), perm_df["importance"].values,
-            xerr=perm_df["std"].values, color=colors, edgecolor="none", capsize=3)
+            xerr=perm_df["std"].values, color=colors, edgecolor="none",
+            capsize=2, error_kw={"elinewidth": 0.7, "capthick": 0.7})
+    for s in ax.spines.values():
+        s.set_linewidth(0.8)
     ax.set_yticks(range(len(perm_df)))
-    ax.set_yticklabels([f.replace("bm_", "") for f in perm_df["feature"]],
-                       fontsize=FONT_SIZE_TICK)
-    ax.set_xlabel("Permutation Importance")
+    ax.set_yticklabels([_short(f) for f in perm_df["feature"]],
+                       fontsize=8)
+    ax.tick_params(axis="x", labelsize=7.5)
+    ax.set_xlabel("Permutation Importance", fontsize=8.5)
     ax.set_title("RF Permutation Importance (OOB $R^2$ = {:.3f})".format(rf.oob_score_),
-                 fontweight="bold")
+                 fontsize=7.5, fontweight="bold")
     ax.invert_yaxis()
     _cat_legend(ax)
     outpath = FIGURES_DIR / "fig_rf_importance.pdf"
@@ -611,14 +676,18 @@ def fig_ks_effect(df):
     ks_df = pd.DataFrame(ks_list).sort_values("ks_stat", ascending=False)
 
     fig, ax = plt.subplots(figsize=(_FIG_W, _FIG_H))
+    _grid(ax, "x")
     colors = [_cat_color(f) for f in ks_df["feature"]]
     ax.barh(range(len(ks_df)), ks_df["ks_stat"].values, color=colors, edgecolor="none")
+    for s in ax.spines.values():
+        s.set_linewidth(0.8)
     ax.set_yticks(range(len(ks_df)))
-    ax.set_yticklabels([f.replace("bm_", "") for f in ks_df["feature"]],
-                       fontsize=FONT_SIZE_TICK)
-    ax.set_xlabel("KS Statistic")
+    ax.set_yticklabels([_short(f) for f in ks_df["feature"]],
+                       fontsize=8)
+    ax.tick_params(axis="x", labelsize=7.5)
+    ax.set_xlabel("KS Statistic", fontsize=8.5)
     ax.set_title("KS Distributional Effect (top 25% vs bottom 25%, winsorized)",
-                 fontweight="bold")
+                 fontsize=7, fontweight="bold")
     ax.invert_yaxis()
     _cat_legend(ax)
     outpath = FIGURES_DIR / "fig_ks_effect.pdf"
@@ -674,15 +743,21 @@ def fig_failure_modes(summary):
     cat_colors = [FAILURE_CATEGORY_COLORS[c] for c in cats_present]
     failure_counts = failure_counts.rename(columns=FAILURE_CATEGORY_LABELS)
 
-    fig, ax = plt.subplots(figsize=(14, 6))
-    failure_counts.plot(kind="bar", stacked=True, ax=ax,
+    # Horizontal bars so the 10 model names stay legible at column width.
+    fig, ax = plt.subplots(figsize=(4.2, 4.6))
+    failure_counts.plot(kind="barh", stacked=True, ax=ax,
                         color=cat_colors, edgecolor="none", linewidth=0)
-    ax.set_xlabel("Model")
-    ax.set_ylabel("Number of Failures")
+    _grid(ax, "x")  # after pandas .plot(), which otherwise resets the grid
+    ax.set_xlabel("Number of Failures", fontsize=8.5)
+    ax.set_ylabel("")
+    ax.invert_yaxis()
+    ax.tick_params(labelsize=7.5)
     ax.set_title("Failure Categories per Model (all seeds pooled)",
-                 fontweight="bold")
-    ax.legend(loc="upper left", fontsize=FONT_SIZE_LEGEND)
-    plt.xticks(rotation=45, ha="right")
+                 fontsize=8, fontweight="bold")
+    ax.legend(loc="upper center", bbox_to_anchor=(0.5, -0.10), ncol=3,
+              fontsize=6, frameon=False)
+    for s in ax.spines.values():
+        s.set_linewidth(0.8)
 
     outpath = FIGURES_DIR / "fig_failure_modes.pdf"
     fig.savefig(outpath, **SAVEFIG_KW)
@@ -903,21 +978,29 @@ def fig_condition_ranking(df3, best):
 
     # Insert vanilla baseline as a grey bar at the top
     n_conds = len(cond_summary)
-    fig, ax = plt.subplots(figsize=(12, 15))
+    fig, ax = plt.subplots(figsize=(3.6, 5.0))
+    _grid(ax, "x")
     # Add vanilla as position 0
     y_pos = np.arange(n_conds + 1)
-    all_labels = ["vanilla (baseline)"] + cond_summary["condition"].tolist()
+    all_labels = ["vanilla (baseline)"] + [
+        f"{fmt}-{_short(feat)}"
+        for fmt, feat in zip(cond_summary["format"], cond_summary["feature"])
+    ]
     all_means = [VANILLA_AOCC] + cond_summary["aocc_mean"].tolist()
     all_stds = [0.097] + cond_summary["aocc_std"].tolist()
     all_colors = ["#cccccc"] + [FORMAT_COLORS[row["format"]] for _, row in cond_summary.iterrows()]
 
     ax.barh(y_pos, all_means, xerr=all_stds,
-            color=all_colors, edgecolor="none", capsize=3)
+            color=all_colors, edgecolor="none",
+            capsize=2, error_kw={"elinewidth": 0.7, "capthick": 0.7})
+    for s in ax.spines.values():
+        s.set_linewidth(0.8)
     ax.set_yticks(y_pos)
-    ax.set_yticklabels(all_labels, fontsize=FONT_SIZE_LEGEND)
-    ax.set_xlabel("Mean Best AOCC")
+    ax.set_yticklabels(all_labels, fontsize=7.5)
+    ax.tick_params(axis="x", labelsize=7.5)
+    ax.set_xlabel("Mean Best AOCC", fontsize=8.5)
     ax.set_title("All 29 Conditions Ranked by Mean Best AOCC",
-                 fontweight="bold")
+                 fontsize=7.5, fontweight="bold")
     ax.invert_yaxis()
 
     # Vertical dashed line at vanilla baseline (no text label)
@@ -926,7 +1009,10 @@ def fig_condition_ranking(df3, best):
     legend_elements = [mpatches.Patch(facecolor=FORMAT_COLORS[f], edgecolor="none", label=f)
                        for f in FORMATS]
     legend_elements.append(mpatches.Patch(facecolor="#cccccc", edgecolor="none", label="vanilla"))
-    ax.legend(handles=legend_elements, loc="lower right", fontsize=FONT_SIZE_LEGEND)
+    # Below the axes, clear of the x-axis label, so it never covers the bars.
+    ax.legend(handles=legend_elements, loc="upper center", bbox_to_anchor=(0.5, -0.11),
+              ncol=4, fontsize=6.5, frameon=False, columnspacing=1.2,
+              handlelength=1.1, handletextpad=0.4, borderaxespad=0.0)
 
     outpath = FIGURES_DIR / "fig_condition_ranking.pdf"
     fig.savefig(outpath, **SAVEFIG_KW)
@@ -940,7 +1026,9 @@ def fig_condition_ranking(df3, best):
 
 def fig_convergence_by_format(df3):
     """Per-feature convergence curves, one curve per format (2x5 grid)."""
-    fig, axes = plt.subplots(2, 5, figsize=(22, 10), sharey=True)
+    fig, axes = plt.subplots(2, 5, figsize=(9.5, 4.3), sharey=True)
+    for _a in axes.flat:
+        _grid(_a, "both")
     axes_flat = axes.flatten()
 
     for idx, feat in enumerate(FEATURES):
@@ -970,13 +1058,15 @@ def fig_convergence_by_format(df3):
             ax.fill_between(x, mean_c - std_c, mean_c + std_c,
                             alpha=0.15, color=FORMAT_COLORS[fmt])
 
-        ax.set_title(FEATURE_SHORT[feat], fontsize=FONT_SIZE_TICK, fontweight="bold")
-        ax.set_xlabel("Evaluation")
+        ax.set_title(FEATURE_SHORT[feat], fontsize=8, fontweight="bold")
         if idx % 5 == 0:
-            ax.set_ylabel("Best-so-far AOCC")
+            ax.set_ylabel("Best-so-far AOCC", fontsize=8)
         ax.set_ylim(0.4, 1.0)
+        ax.tick_params(labelsize=6.5)
 
-    axes_flat[-1].legend(loc="lower right", fontsize=FONT_SIZE_LEGEND)
+    axes_flat[-1].legend(loc="lower right", fontsize=6.5)
+    fig.supxlabel("Candidate evaluation", fontsize=9)
+    fig.tight_layout()
 
     outpath = FIGURES_DIR / "fig_convergence_by_format.pdf"
     fig.savefig(outpath, **SAVEFIG_KW)
@@ -1016,7 +1106,9 @@ def fig_guided_medians(df3, df1):
     tier_colors = {"bottom 25%": "#d62728", "median": "#7f7f7f", "top 10%": "#2ca02c"}
     tier_styles = {"bottom 25%": "--", "median": ":", "top 10%": "--"}
 
-    fig, axes = plt.subplots(2, 5, figsize=(22, 10), sharey=False)
+    fig, axes = plt.subplots(2, 5, figsize=(9.5, 4.3), sharey=False)
+    for _a in axes.flat:
+        _grid(_a, "y")
     axes_flat = axes.flatten()
 
     for idx, feat in enumerate(FEATURES):
@@ -1040,7 +1132,7 @@ def fig_guided_medians(df3, df1):
         ax.bar(x_pos, fmt_medians, yerr=fmt_stds,
                color=[FORMAT_COLORS[f] for f in fmts],
                edgecolor="black", linewidth=0.5, width=0.6, zorder=3,
-               capsize=4, error_kw={"linewidth": 1.2})
+               capsize=2, error_kw={"linewidth": 0.6})
 
         for tier_name, tier_df in tiers.items():
             if bm_col not in tier_df.columns:
@@ -1053,10 +1145,11 @@ def fig_guided_medians(df3, df1):
                        zorder=2)
 
         ax.set_xticks(x_pos)
-        ax.set_xticklabels([f[:4] for f in fmts], fontsize=9)
-        ax.set_title(FEATURE_SHORT[feat], fontsize=FONT_SIZE_TICK, fontweight="bold")
+        ax.set_xticklabels([f[:4] for f in fmts], fontsize=7)
+        ax.set_title(FEATURE_SHORT[feat], fontsize=8, fontweight="bold")
+        ax.tick_params(axis="y", labelsize=6.5)
         if idx % 5 == 0:
-            ax.set_ylabel("Median Feature Value")
+            ax.set_ylabel("Median Feature Value", fontsize=8)
 
     # Build combined legend: bar colors for formats + line styles for tiers
     import matplotlib.lines as _mlines
@@ -1075,9 +1168,9 @@ def fig_guided_medians(df3, df1):
                        linestyle=tier_styles["top 10%"], linewidth=2, label="Top 10% (Stage 1)"),
     ]
     plt.tight_layout()
-    fig.legend(handles=legend_elements, loc="upper center", ncol=6, fontsize=9,
-               bbox_to_anchor=(0.5, 0.97), frameon=True)
-    plt.subplots_adjust(top=0.90)
+    fig.legend(handles=legend_elements, loc="upper center", ncol=6, fontsize=6.5,
+               bbox_to_anchor=(0.5, 0.99), frameon=True)
+    plt.subplots_adjust(top=0.85)
 
     outpath = FIGURES_DIR / "fig_guided_medians.pdf"
     fig.savefig(outpath, **SAVEFIG_KW)
@@ -1242,8 +1335,10 @@ def _plot_mabbob_distribution(W, selected, outpath):
             group_map[func_labels[c]] = gname.split(" (")[0]
     bar_colors = [_MABBOB_GROUP_COLORS[group_map[f]] for f in func_labels]
 
-    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(16, 5.5),
+    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(9.5, 3.6),
                                     gridspec_kw={"width_ratios": [3, 1.2]})
+    _grid(ax1, "y")
+    _grid(ax2, "y")
 
     bars = ax1.bar(func_labels, shares * 100, color=bar_colors,
                    edgecolor="white", linewidth=0.5)
@@ -1252,7 +1347,7 @@ def _plot_mabbob_distribution(W, selected, outpath):
     ax1.set_ylabel("Share of total weight (%)")
     ax1.set_xlabel("BBOB Function")
     ax1.set_title("(a) Per-function weight share", fontweight="bold")
-    ax1.set_ylim(0, max(shares * 100) * 1.3)
+    ax1.set_ylim(0, max(shares * 100) * 1.5)
     for bar, share in zip(bars, shares):
         ax1.text(bar.get_x() + bar.get_width() / 2, bar.get_height() + 0.15,
                  f"{share*100:.1f}", ha="center", va="bottom", fontsize=FONT_SIZE_LEGEND)
@@ -1261,7 +1356,9 @@ def _plot_mabbob_distribution(W, selected, outpath):
                for g, c in _MABBOB_GROUP_COLORS.items()]
     patches.append(mlines.Line2D([], [], color="#555555", linestyle="--",
                                  linewidth=1, label=f"Ideal ({ideal*100:.1f}%)"))
-    ax1.legend(handles=patches, loc="upper right", fontsize=FONT_SIZE_LEGEND)
+    ax1.legend(handles=patches, loc="upper right", fontsize=FONT_SIZE_LEGEND - 1.5,
+               handlelength=1.2, handletextpad=0.4, labelspacing=0.3,
+               borderpad=0.3, framealpha=0.9)
 
     group_names_short = []
     group_shares_pct = []

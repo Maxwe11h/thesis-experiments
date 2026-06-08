@@ -6,6 +6,29 @@
 \chapter{Results}
 \label{ch:results}
 
+\begin{table}[t]
+\centering
+\caption{Stage~1 model ranking (100 candidates $\times$ 5 seeds, vanilla feedback). Fail\% and AOCC averaged across seeds ($\pm$ std).}
+\label{tab:model-ranking}
+\footnotesize
+\begin{tabular}{@{}rlrrr@{}}
+\toprule
+\textbf{\#} & \textbf{Model} & \textbf{Fail\%} & \textbf{AOCC} & \textbf{h/run} \\
+\midrule
+1  & Gem.~3 Pro    & 10.2  & .885$\pm$.011 & 5.1 \\
+2  & Gem.~3 Flash  & \textbf{2.0} & .862$\pm$.108 & 3.9 \\
+3  & Qwen3.5 27B   & 41.0  & .817$\pm$.009 & 38.9 \\
+4  & OLMo~3 32B    & 13.2  & .690$\pm$.109 & 39.3 \\
+5  & OLMo~3 7B     & 27.6  & .657$\pm$.160 & 18.4 \\
+6  & Devstral~2    & 32.6  & .625$\pm$.222 & 5.0 \\
+7  & Granite~4 3B  & 53.8  & .569$\pm$.087 & \textbf{0.6} \\
+8  & Qwen3.5 4B    & 76.2  & .492$\pm$.209 & 7.9 \\
+9  & Qwen3.5 9B    & 91.6  & .373$\pm$.127 & 3.0 \\
+10 & RNJ-1 8B      & 34.6  & .254$\pm$.037 & 14.5 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
 \begin{figure*}[t]
   \centering
   \includegraphics[width=\textwidth]{figures/fig_tsne_behavioral.pdf}
@@ -66,15 +89,13 @@ The five strongest associations are \texttt{avg\_improvement} ($-0.782$), \textt
 
 Examining correlations by feature category, the exploitation features show the strongest positive associations. High \texttt{intensification\_ratio} ($+0.725$) and low \texttt{avg\_distance\_to\_best} ($-0.691$) both indicate search focused near the best-known solution. The convergence features reinforce this picture. Low \texttt{avg\_improvement} ($-0.782$) and high \texttt{fitness\_plateau\_fraction} ($+0.685$). Among the step-size and movement features, \texttt{step\_size\_autocorrelation} ($+0.766$) leads the category. The early/late dynamics features show that \texttt{x\_spread\_early} ($-0.599$) correlates negatively with AOCC. The exploration features show moderate negative correlations ($|\rho| \approx 0.4$--$0.6$). The weakest associations appear among \texttt{directional\_persistence} ($+0.139$) and \texttt{fitness\_lempel\_ziv\_complexity} ($+0.152$).
 
-\begin{figure}[!t]
+\begin{figure}[tbp]
   \centering
   \includegraphics[width=\columnwidth]{figures/fig_spearman.pdf}
   \caption{Spearman rank correlation $\rho$ between each behavioural feature and AOCC across all $3{,}071$ valid candidates, sorted by $|\rho|$ and coloured by feature category. All features significant at $p < 0.001$ after Bonferroni correction.}
   \label{fig:spearman}
-\end{figure}
 
-\begin{figure}[tbp]
-  \centering
+  \vspace{\floatsep}
   \includegraphics[width=\columnwidth]{figures/fig_rf_importance.pdf}
   \caption{Random Forest permutation importance for all 32 features, sorted by importance. Error bars show standard deviation across 10 permutation repeats.}
   \label{fig:rf-importance}
@@ -126,45 +147,45 @@ A Random Forest regressor with 200 trees is trained on all 32 features to predic
 \label{tab:feature-consensus}
 \footnotesize
 \setlength{\tabcolsep}{3.5pt}
-\begin{tabular}{@{}rlrrrrrrl@{}}
+\begin{tabular}{@{}rllrrrrrrl@{}}
 \toprule
-& & \multicolumn{2}{c}{\textbf{Spearman}} & \multicolumn{2}{c}{\textbf{RF Importance}} & \multicolumn{2}{c}{\textbf{KS}} & \\
-\cmidrule(lr){3-4} \cmidrule(lr){5-6} \cmidrule(lr){7-8}
-\textbf{Borda} & \textbf{Feature} & \boldmath{$\rho$} & \textbf{R} & \textbf{Imp} & \textbf{R} & \textbf{Stat} & \textbf{R} & \textbf{Status} \\
+& & & \multicolumn{2}{c}{\textbf{Spearman}} & \multicolumn{2}{c}{\textbf{RF Importance}} & \multicolumn{2}{c}{\textbf{KS}} & \\
+\cmidrule(lr){4-5} \cmidrule(lr){6-7} \cmidrule(lr){8-9}
+\textbf{Borda} & \textbf{Feature} & \textbf{Abbrev.} & \boldmath{$\rho$} & \textbf{R} & \textbf{Imp} & \textbf{R} & \textbf{Stat} & \textbf{R} & \textbf{Status} \\
 \midrule
-3  & avg\_improvement              & $-$.782 &  1 & .291 &  1 & .938 &  1 & \textbf{Selected} \\
-7  & success\_rate                 & $+$.766 &  2 & .107 &  3 & .899 &  2 & Pruned ($|r|{=}.92$, avg\_impr) \\
-13 & intensification\_ratio        & $+$.725 &  5 & .068 &  4 & .894 &  4 & \textbf{Selected} \\
-15 & fitness\_plateau\_frac        & $+$.685 &  7 & .215 &  2 & .867 &  6 & \textbf{Selected} \\
-18 & step\_size\_autocorr          & $+$.766 &  3 & .007 & 10 & .881 &  5 & \textbf{Selected} \\
-28 & impr\_spatial\_corr           & $+$.757 &  4 & .002 & 21 & .899 &  3 & \textbf{Selected} \\
-36 & fitness\_sample\_entropy      & $-$.680 &  8 & .002 & 20 & .845 &  8 & Pruned ($|r|{=}.87$, plateau\_frac) \\
-37 & half\_convergence\_time       & $-$.597 & 14 & .004 & 14 & .840 &  9 & \textbf{Selected} \\
-38 & fitness\_autocorrelation      & $+$.645 &  9 & .002 & 19 & .835 & 10 & \textbf{Selected} \\
-40 & avg\_distance\_to\_best       & $-$.691 &  6 & .001 & 27 & .852 &  7 & Pruned ($|r|{=}.96$, intens\_ratio) \\
-40 & x\_spread\_early              & $-$.599 & 13 & .006 & 13 & .775 & 14 & \textbf{Selected} \\
-43 & longest\_no\_improv\_streak   & $-$.469 & 16 & .016 &  7 & .703 & 20 & \textbf{Selected} \\
-44 & avg\_nn\_distance             & $-$.469 & 17 & .012 &  8 & .720 & 19 & Pruned ($|r|{=}.82$, x\_spread) \\
-48 & step\_size\_mean              & $-$.622 & 10 & .001 & 25 & .806 & 13 & Pruned ($|r|{=}.83$, intens\_ratio) \\
-52 & avg\_exploitation\_pct        & $+$.612 & 12 & .001 & 28 & .808 & 12 & Pruned ($|r|{=}.87$, intens\_ratio) \\
-55 & avg\_exploration\_pct         & $-$.612 & 11 & .000 & 32 & .808 & 12 & Pruned ($|r|{=}.87$, intens\_ratio) \\
-55 & dim\_conv\_heterogeneity      & $+$.471 & 15 & .001 & 23 & .727 & 17 & \textbf{Selected} \\
+3  & avg\_improvement              & avg improv & $-$.782 &  1 & .291 &  1 & .938 &  1 & \textbf{Selected} \\
+7  & success\_rate                 & success rate & $+$.766 &  2 & .107 &  3 & .899 &  2 & Pruned ($|r|{=}.92$, avg\_impr) \\
+13 & intensification\_ratio        & intensif ratio & $+$.725 &  5 & .068 &  4 & .894 &  4 & \textbf{Selected} \\
+15 & fitness\_plateau\_frac        & plateau frac & $+$.685 &  7 & .215 &  2 & .867 &  6 & \textbf{Selected} \\
+18 & step\_size\_autocorr          & step autocorr & $+$.766 &  3 & .007 & 10 & .881 &  5 & \textbf{Selected} \\
+28 & impr\_spatial\_corr           & improv spatial corr & $+$.757 &  4 & .002 & 21 & .899 &  3 & \textbf{Selected} \\
+36 & fitness\_sample\_entropy      & sample entropy & $-$.680 &  8 & .002 & 20 & .845 &  8 & Pruned ($|r|{=}.87$, plateau\_frac) \\
+37 & half\_convergence\_time       & half-conv time & $-$.597 & 14 & .004 & 14 & .840 &  9 & \textbf{Selected} \\
+38 & fitness\_autocorrelation      & fit autocorr & $+$.645 &  9 & .002 & 19 & .835 & 10 & \textbf{Selected} \\
+40 & avg\_distance\_to\_best       & dist to best & $-$.691 &  6 & .001 & 27 & .852 &  7 & Pruned ($|r|{=}.96$, intens\_ratio) \\
+40 & x\_spread\_early              & x-spread early & $-$.599 & 13 & .006 & 13 & .775 & 14 & \textbf{Selected} \\
+43 & longest\_no\_improv\_streak   & no-improv streak & $-$.469 & 16 & .016 &  7 & .703 & 20 & \textbf{Selected} \\
+44 & avg\_nn\_distance             & nn distance & $-$.469 & 17 & .012 &  8 & .720 & 19 & Pruned ($|r|{=}.82$, x\_spread) \\
+48 & step\_size\_mean              & step mean & $-$.622 & 10 & .001 & 25 & .806 & 13 & Pruned ($|r|{=}.83$, intens\_ratio) \\
+52 & avg\_exploitation\_pct        & exploit \% & $+$.612 & 12 & .001 & 28 & .808 & 12 & Pruned ($|r|{=}.87$, intens\_ratio) \\
+55 & avg\_exploration\_pct         & explore \% & $-$.612 & 11 & .000 & 32 & .808 & 12 & Pruned ($|r|{=}.87$, intens\_ratio) \\
+55 & dim\_conv\_heterogeneity      & dim conv heterog & $+$.471 & 15 & .001 & 23 & .727 & 17 & \textbf{Selected} \\
 \midrule
-55 & average\_convergence\_rate    & $-$.400 & 22 & .030 &  6 & .604 & 27 & --- \\
-57 & fitness\_perm\_entropy        & $-$.238 & 27 & .047 &  5 & .622 & 25 & --- \\
-58 & dispersion                    & $+$.421 & 21 & .003 & 16 & .664 & 21 & --- \\
-64 & improvement\_burstiness       & $+$.370 & 24 & .003 & 17 & .635 & 23 & --- \\
-65 & last\_improvement\_frac       & $-$.370 & 25 & .006 & 12 & .555 & 28 & --- \\
-65 & step\_size\_std               & $-$.437 & 20 & .001 & 29 & .755 & 16 & --- \\
-65 & x\_spread\_late               & $-$.450 & 19 & .000 & 31 & .759 & 15 & --- \\
-66 & f\_range\_early               & $-$.466 & 18 & .001 & 24 & .624 & 24 & --- \\
-68 & step\_size\_trend             & $-$.228 & 28 & .006 & 11 & .538 & 29 & --- \\
-71 & f\_range\_late                & $-$.394 & 23 & .000 & 30 & .724 & 18 & --- \\
-71 & centroid\_drift               & $+$.177 & 30 & .004 & 15 & .612 & 26 & --- \\
-72 & fitness\_lempel\_ziv          & $+$.152 & 31 & .010 &  9 & .380 & 32 & --- \\
-74 & f\_range\_ratio               & $-$.313 & 26 & .001 & 26 & .654 & 22 & --- \\
-81 & spread\_ratio                 & $-$.224 & 29 & .001 & 22 & .511 & 30 & --- \\
-81 & directional\_persistence      & $+$.139 & 32 & .002 & 18 & .502 & 31 & --- \\
+55 & average\_convergence\_rate    & conv rate & $-$.400 & 22 & .030 &  6 & .604 & 27 & --- \\
+57 & fitness\_perm\_entropy        & perm entropy & $-$.238 & 27 & .047 &  5 & .622 & 25 & --- \\
+58 & dispersion                    & dispersion & $+$.421 & 21 & .003 & 16 & .664 & 21 & --- \\
+64 & improvement\_burstiness       & improv burstiness & $+$.370 & 24 & .003 & 17 & .635 & 23 & --- \\
+65 & last\_improvement\_frac       & last-improv frac & $-$.370 & 25 & .006 & 12 & .555 & 28 & --- \\
+65 & step\_size\_std               & step std & $-$.437 & 20 & .001 & 29 & .755 & 16 & --- \\
+65 & x\_spread\_late               & x-spread late & $-$.450 & 19 & .000 & 31 & .759 & 15 & --- \\
+66 & f\_range\_early               & f-range early & $-$.466 & 18 & .001 & 24 & .624 & 24 & --- \\
+68 & step\_size\_trend             & step trend & $-$.228 & 28 & .006 & 11 & .538 & 29 & --- \\
+71 & f\_range\_late                & f-range late & $-$.394 & 23 & .000 & 30 & .724 & 18 & --- \\
+71 & centroid\_drift               & centroid drift & $+$.177 & 30 & .004 & 15 & .612 & 26 & --- \\
+72 & fitness\_lempel\_ziv          & LZ complexity & $+$.152 & 31 & .010 &  9 & .380 & 32 & --- \\
+74 & f\_range\_ratio               & f-range ratio & $-$.313 & 26 & .001 & 26 & .654 & 22 & --- \\
+81 & spread\_ratio                 & spread ratio & $-$.224 & 29 & .001 & 22 & .511 & 30 & --- \\
+81 & directional\_persistence      & direction persist & $+$.139 & 32 & .002 & 18 & .502 & 31 & --- \\
 \bottomrule
 \end{tabular}
 \\[0.3em]
@@ -259,19 +280,6 @@ The correlation magnitudes weaken substantially. For example, \texttt{avg\_impro
 
 This collapse falls disproportionately on the comparative format. Neutral and directional feedback do not use the tier values, so neither is affected by the narrowing. Comparative feedback is built entirely on them. Its distance signal $d = (v_{\text{ref}} - v) / (v_{\text{ref}} - v_{\text{bot25}})$ is normalised by exactly the top-to-bottom gap that shrinks by an order of magnitude here. When that denominator collapses, the same absolute difference is rescaled into a far larger normalised distance, so the format's tier-based wording is driven by a scale calibrated on a model pool the deployment model no longer resembles.
 
-\subsection{Convergence Dynamics}
-\label{sec:results-convergence}
-
-\Cref{fig:convergence-by-format} shows the best-so-far convergence curves for each feature, split by format. The two features with the strongest format effects, \texttt{intensification\_ratio} and \texttt{dim\_conv\_heterogeneity} (the same pair that reach within-feature statistical significance above), show a clear separation early in the run that widens throughout. The features where directional performs well (\texttt{half\_convergence\_time}, \texttt{longest\_streak}) show the formats tracking closely. For features such as \texttt{avg\_improvement}, all three formats converge to similar levels with high variance.
-
-\subsection{Behaviour Steering}
-\label{sec:results-decoupling}
-
-In addition to per-feature AOCC values, \Cref{tab:steering-detail} shows the median behavioural feature value produced by each format and whether prescriptive feedback steered the feature in the advised direction relative to neutral. \Cref{fig:guided-medians} visualises these values against the Stage~1 AOCC performance tiers. Across all features, directional feedback steers correctly for 3 of 10 cases and comparative for 4 of 9, giving an overall steering accuracy of $37\%$. Two features (\texttt{fitness\_autocorrelation} and \texttt{x\_spread\_early}) are steered in the correct direction by both guidance formats but achieve lower AOCC than neutral. For \texttt{x\_spread\_early}, directional feedback reduces the median spread from $1.55$ to $0.55$, well past the top-10\% reference of $0.621$, yet AOCC drops from neutral's $0.844$ to $0.793$. The same pattern appears for \texttt{fitness\_autocorrelation}, where both prescriptive formats increase the value as advised but achieve lower AOCC than neutral.
-
-\subsection{Code Complexity}
-\label{sec:results-ast}
-
 \begin{table*}[!t]
 \centering
 \caption{Structural metrics for the $14{,}127$ valid Stage~3 algorithms, parsed via Python's \texttt{ast} module. Columns are grouped into per-format mean $\pm$ std (N = neutral, D = directional, C = comparative; per-format $n \approx 4{,}700$), between-format tests (Kruskal--Wallis $p$ across the three formats and three pairwise Cliff's $d$ effect sizes), and the Spearman rank correlation between the metric and AOCC together with its $p$-value. Rows are sorted by $d_{N\!-\!C}$ descending.}
@@ -309,6 +317,33 @@ Augmented assigns                   & 5.9$\pm$3.8    & 6.4$\pm$3.3    & 6.6$\pm$
   \label{fig:guided-medians}
 \end{figure*}
 
+\begin{figure*}[!t]
+  \centering
+  \includegraphics[width=\textwidth]{figures/fig_phase4_convergence.pdf}
+  \caption{Best-so-far AOCC across the 500-candidate budget, mean $\pm$ 1 std across 10 seeds. (a)~Full AOCC range. (b)~Zoomed to $[0.75, 1.0]$ to resolve between-condition differences.}
+  \label{fig:phase4-convergence}
+\end{figure*}
+
+\begin{figure}[t]
+  \centering
+  \includegraphics[width=\columnwidth]{figures/fig_phase4_final_aocc.pdf}
+  \caption{Final best-so-far AOCC after 500 candidates, 10 seeds per condition. Box shows quartiles, whisker shows 1.5$\times$IQR, individual seeds plotted as black dots.}
+  \label{fig:phase4-final-aocc}
+\end{figure}
+
+\subsection{Convergence Dynamics}
+\label{sec:results-convergence}
+
+\Cref{fig:convergence-by-format} shows the best-so-far convergence curves for each feature, split by format. The two features with the strongest format effects, \texttt{intensification\_ratio} and \texttt{dim\_conv\_heterogeneity} (the same pair that reach within-feature statistical significance above), show a clear separation early in the run that widens throughout. The features where directional performs well (\texttt{half\_convergence\_time}, \texttt{longest\_streak}) show the formats tracking closely. For features such as \texttt{avg\_improvement}, all three formats converge to similar levels with high variance.
+
+\subsection{Behaviour Steering}
+\label{sec:results-decoupling}
+
+In addition to per-feature AOCC values, \Cref{tab:steering-detail} shows the median behavioural feature value produced by each format and whether prescriptive feedback steered the feature in the advised direction relative to neutral. \Cref{fig:guided-medians} visualises these values against the Stage~1 AOCC performance tiers. Across all features, directional feedback steers correctly for 3 of 10 cases and comparative for 4 of 9, giving an overall steering accuracy of $37\%$. Two features (\texttt{fitness\_autocorrelation} and \texttt{x\_spread\_early}) are steered in the correct direction by both guidance formats but achieve lower AOCC than neutral. For \texttt{x\_spread\_early}, directional feedback reduces the median spread from $1.55$ to $0.55$, well past the top-10\% reference of $0.621$, yet AOCC drops from neutral's $0.844$ to $0.793$. The same pattern appears for \texttt{fitness\_autocorrelation}, where both prescriptive formats increase the value as advised but achieve lower AOCC than neutral.
+
+\subsection{Code Complexity}
+\label{sec:results-ast}
+
 We measure structural complexity by parsing every valid Stage~3 algorithm with Python's \texttt{ast} module and extracting twelve metrics covering raw size, arithmetic content, and control-flow structure (\cref{tab:ast-complexity}). Neutral feedback produces more complex code than the prescriptive formats. We test for between-format differences using Kruskal--Wallis on each metric. At $\sim 4{,}700$ algorithms per format, the test rejects the null at $p < 10^{-13}$ on every row, so effect sizes carry the comparison. The largest pairwise gap on each metric is between neutral and comparative. Cliff's $d$ ($d_{N\!-\!C}$) is at least $+0.20$ (small effect or larger) on six of twelve metrics: total AST nodes, NumPy calls, assignments, \texttt{try}/\texttt{except} blocks, \texttt{return} statements, and \texttt{while} loops. Directional sits between the other two formats, with $d_{N\!-\!D}$ and $d_{D\!-\!C}$ both smaller and of the same sign as $d_{N\!-\!C}$ except on the \texttt{if}-branches metric.
 
 We test the metric--AOCC association with Spearman rank correlation across the full set. All twelve correlations are statistically significant. Total AST nodes ($\rho_{\text{AOCC}} = +0.48$), NumPy calls ($+0.60$), and numeric constants ($+0.66$) show the strongest correlations with AOCC.
@@ -317,21 +352,7 @@ We test the metric--AOCC association with Spearman rank correlation across the f
 \section{Full-Benchmark Comparison}
 \label{sec:results-stage4}
 
-\begin{figure*}[!t]
-  \centering
-  \includegraphics[width=\textwidth]{figures/fig_phase4_convergence.pdf}
-  \caption{Best-so-far AOCC across the 500-candidate budget, mean $\pm$ 1 std across 10 seeds. (a)~Full AOCC range. (b)~Zoomed to $[0.75, 1.0]$ to resolve between-condition differences.}
-  \label{fig:phase4-convergence}
-\end{figure*}
-
 The Stage~4 dataset contains $16{,}538$ valid candidates produced by Gemini~3 Flash across four feedback conditions (vanilla, neutral-behavioural, SAGE, combined) at 500 candidates per seed and 10 seeds per condition, evaluated on 20 disjoint MA-BBOB functions with five instance seeds each. This section reports the head-to-head comparison across aggregate condition performance, failure-rate dynamics, and the identity of the best-found algorithm in each condition.
-
-\begin{figure}[t]
-  \centering
-  \includegraphics[width=\columnwidth]{figures/fig_phase4_final_aocc.pdf}
-  \caption{Final best-so-far AOCC after 500 candidates, 10 seeds per condition. Box shows quartiles, whisker shows 1.5$\times$IQR, individual seeds plotted as black dots.}
-  \label{fig:phase4-final-aocc}
-\end{figure}
 
 \begin{table}[t]
 \centering
@@ -349,6 +370,27 @@ Combined & 0.9372 & 0.9375 & 0.0090 & 17.6 \\
 \end{tabular}
 \end{table}
 
+\begin{figure*}[!t]
+  \centering
+  \includegraphics[width=\textwidth]{figures/fig_phase4_per_instance.pdf}
+  \caption{Per-instance mean AOCC of each condition's best-found algorithm across the 20 MA-BBOB functions in the Stage~4 set. Each cell averages 10 seeds; the leading condition for each instance is outlined and bolded.}
+  \label{fig:phase4-per-instance}
+\end{figure*}
+
+\begin{figure}[t]
+  \centering
+  \includegraphics[width=\columnwidth]{figures/fig_phase4_failure_modes.pdf}
+  \caption{Stage~4 failure-mode breakdown by condition, classified through the same replay procedure used in \cref{fig:failure-modes}.}
+  \label{fig:phase4-failure-modes}
+\end{figure}
+
+\begin{figure}[t]
+  \centering
+  \includegraphics[width=\columnwidth]{figures/fig_phase4_failure_by_gen.pdf}
+  \caption{Per-condition failure rate as a function of candidate generation index, binned in 100-candidate windows ($[0, 100)$, $[100, 200)$, $\ldots$). The x-axis is the generation-index bin; the y-axis is the fraction of candidates in that bin which fail the BLADE validation pipeline (\cref{fig:phase4-failure-modes}).}
+  \label{fig:phase4-failure-bygen}
+\end{figure}
+
 % ---------------------------------------------------------------------------
 \subsection{Aggregate Condition Performance}
 \label{sec:results-stage4-agg}
@@ -356,13 +398,6 @@ Combined & 0.9372 & 0.9375 & 0.0090 & 17.6 \\
 \Cref{fig:phase4-final-aocc} and \cref{tab:phase4-final-aocc} show the final best-so-far AOCC distribution across 10 seeds per condition. Sorted by mean, vanilla finishes lowest at $0.915 \pm 0.048$, followed by neutral at $0.931 \pm 0.036$, combined at $0.937 \pm 0.009$, and SAGE at $0.938 \pm 0.038$. The seed-to-seed standard deviation under combined is roughly five times smaller than under vanilla. At the per-seed level, vanilla has four seeds finishing below $0.88$, neutral one, SAGE one, and combined none.
 
 \Cref{fig:phase4-convergence} traces the best-so-far AOCC across the 500-candidate budget. Within the first 100 generations, vanilla, SAGE, and combined all reach a mean of roughly $0.90$, with neutral lagging at $0.87$. Vanilla's gen-100 mean of $0.901$ already exceeds the $0.862$ that Gemini~3 Flash reached after 100 candidates on the Stage~1 instance subset. From generation 100 onwards the four trajectories diverge. Vanilla plateaus near $0.91$, while neutral, SAGE, and combined continue rising, with neutral nearly matching SAGE and combined by generation 500.
-
-\begin{figure*}[!t]
-  \centering
-  \includegraphics[width=\textwidth]{figures/fig_phase4_per_instance.pdf}
-  \caption{Per-instance mean AOCC of each condition's best-found algorithm across the 20 MA-BBOB functions in the Stage~4 set. Each cell averages 10 seeds; the leading condition for each instance is outlined and bolded.}
-  \label{fig:phase4-per-instance}
-\end{figure*}
 
 \Cref{fig:phase4-per-instance} reports the same comparison at the per-instance level. It shows the mean AOCC of each condition's best-found algorithm on each of the 20 MA-BBOB functions. Neutral takes the leading mean on 9 instances, combined on 6, SAGE on 4, and vanilla on 1.
 
@@ -372,23 +407,9 @@ A Welch one-sided $t$-test of each feedback condition against vanilla returns $p
 \subsection{Failure-Rate Analysis}
 \label{sec:results-stage4-failures}
 
-\begin{figure}[t]
-  \centering
-  \includegraphics[width=\columnwidth]{figures/fig_phase4_failure_modes.pdf}
-  \caption{Stage~4 failure-mode breakdown by condition, classified through the same replay procedure used in \cref{fig:failure-modes}.}
-  \label{fig:phase4-failure-modes}
-\end{figure}
-
 The failure rates in Stage~4 are higher than in earlier stages despite no changes to the candidate-extraction code or the BLADE evaluation pipeline. Vanilla fails on $16.8\%$ of candidates, neutral on $13.9\%$, SAGE on $21.0\%$, and combined on $17.6\%$, against the $2.0\%$ rate reported for Gemini~3 Flash in \cref{sec:results-failures} and the $1.5$--$3.5\%$ range across formats in \cref{sec:results-format-ordering}.
 
 \Cref{fig:phase4-failure-modes} shows the per-condition failure breakdown across the five categories. Runtime errors dominate every condition (between $82.7\%$ and $89.1\%$ of failures). The conditions differ on the lower-frequency modes. SAGE produces $14.4\%$ import-violation failures, more than three times any other condition. The failed candidates repeatedly import libraries beyond the allowed \texttt{numpy}-only environment (\texttt{scipy.optimize}, \texttt{sklearn}). Combined drives interface mismatches to $4.3\%$, four times any other condition. The failed candidates alter the prescribed \texttt{\_\_init\_\_(budget, dim)} or \texttt{\_\_call\_\_(func)} signature in ways that break the framework contract. Vanilla has the highest unclassified rate at $10.1\%$, with most of these failures tied to specific MA-BBOB instances or dimensions rather than to any structural defect.
-
-\begin{figure}[t]
-  \centering
-  \includegraphics[width=\columnwidth]{figures/fig_phase4_failure_by_gen.pdf}
-  \caption{Per-condition failure rate as a function of candidate generation index, binned in 100-candidate windows ($[0, 100)$, $[100, 200)$, $\ldots$). The x-axis is the generation-index bin; the y-axis is the fraction of candidates in that bin which fail the BLADE validation pipeline (\cref{fig:phase4-failure-modes}).}
-  \label{fig:phase4-failure-bygen}
-\end{figure}
 
 \Cref{fig:phase4-failure-bygen} bins the same failures by generation. Over the first 100 candidates the failure rate is $6.8\%$ for combined, $8.2\%$ for neutral, $8.9\%$ for SAGE, and $13.7\%$ for vanilla. Beyond the 100-candidate mark every condition fails substantially more often. Vanilla settles between $14.7\%$ and $22.0\%$, neutral between $12.1\%$ and $18.7\%$, SAGE climbs from $12.8\%$ in 100--199 to $27.9\%$ in 400--499, and combined from $16.8\%$ to $23.7\%$.
 
@@ -414,27 +435,6 @@ combined & \texttt{OM\_CMA\_EIS}       & 7 & 0.9524 &  95 & 6 \\
 \end{tabular}
 \end{table}
 
-\Cref{tab:phase4-winners} reports the best-found algorithm per condition, taken as the candidate with the highest final best-so-far AOCC across the 10 seeds. The four winners (\texttt{IGA\_CMA}, \texttt{BIPOP\_MA\_CMA\_ES}, \texttt{CMA\_EES}, and \texttt{OM\_CMA\_EIS}) span only a $0.0031$ AOCC range, are each between 95 and 115 lines of code, and have a maximum nesting depth of 6. The full source for all four is available in the project repository.\footnote{\url{https://github.com/Maxwe11h/thesis-experiments/tree/main/docs/stage4_winners}}
-
-All four winners are CMA-ES \cite{hansen2001cmaes} variants and contain the canonical CMA-ES mechanisms in full. These are log-decreasing recombination weights, the standard learning-rate constants $c_c, c_s, c_1, c_\mu$, $\text{damps}$, and $\chi_n$ verbatim, both evolution paths $p_c$ and $p_s$, the Heaviside $h_\sigma$ indicator, the rank-1 plus rank-$\mu$ covariance update, and CSA step-size control. None of the four replaces, simplifies, or fundamentally rederives this core. Each instead decorates it with two or three heuristic add-ons.
-
-Three add-ons recur. Mirrored sampling~\cite{mirrored2010} (antithetic $\pm z$ pairs to halve sampling noise on the mean shift) appears in all four winners. QR-decomposed orthogonal sampling also appears in all four, applied to a \texttt{randn} matrix and rescaled by $\sqrt{n}$ (low-dim-only in \texttt{BIPOP\_MA\_CMA\_ES}). Active CMA with negative rank-$\mu$ weights~\cite{active2006} appears in two of the four. \texttt{IGA\_CMA} uses a flat $-0.8$ negative coefficient, while \texttt{BIPOP\_MA\_CMA\_ES} caps it at $0.5\,c_\mu$. The conditions diverge on the remaining heuristic interventions.
-
-\begin{itemize}
-  \item \textbf{\texttt{IGA\_CMA} (vanilla)} wraps the inner CMA in an IPOP-style~\cite{ipop2005} restart loop that doubles the population size on collapse. A DE-style mean-injection step overrides $x_{\text{mean}}$ on stagnation. Biased re-initialisation draws the new mean near the running best with probability $0.3$.
-  \item \textbf{\texttt{BIPOP\_MA\_CMA\_ES} (neutral)} scaffolds BIPOP~\cite{bipop2009}, alternating between large- and small-population regimes on each restart. The budget accounting that normally selects the next regime is omitted. An unused \texttt{success\_history} list and the absence of any local-search procedure leave the ``MA'' (memetic) prefix decorative.
-  \item \textbf{\texttt{CMA\_EES} (SAGE)} adds edge-biased radial scaling on the orthogonal samples (a $\text{Beta}(0.5, 0.5)$ mixed into the $\chi$-scale). Modulo-reflective boundary handling bounces out-of-bounds points back into the interior. Restart fires only on near-total stagnation and is suppressed past $80\%$ of the FE budget.
-  \item \textbf{\texttt{OM\_CMA\_EIS} (combined)} injects a momentum term, formed as an exponential moving average of recent mean-shift directions, into each sample. There is no proper restart, only a $1.1\times$ sigma kick when the within-generation fitness range collapses.
-\end{itemize}
-
-Beyond the deliberate add-ons, all four winners carry passages that contribute nothing to the search. To separate code that never runs from code that runs without effect, each winner was traced under branch-level coverage on a sample of MA-BBOB instances at the full $2{,}000d$ FE budget. \Cref{tab:winner-coverage} reports the fraction of statements and branches reached. Between $94.6\%$ and $99.0\%$ of statements execute, and the unreached remainder is concentrated in defensive guards that never fire.
-
-The clearest case is the eigendecomposition guard common to all four. Each wraps the covariance eigendecomposition in a \texttt{try}/\texttt{except} (a bare \texttt{except} in \texttt{IGA\_CMA} and \texttt{CMA\_EES}, \texttt{LinAlgError}/\texttt{ValueError} in \texttt{BIPOP\_MA\_CMA\_ES} and \texttt{OM\_CMA\_EIS}) and in every winner that handler executes zero times. The fallback each guard protects (identity covariance in \texttt{CMA\_EES} and \texttt{OM\_CMA\_EIS}, a parameter reset in \texttt{BIPOP\_MA\_CMA\_ES}, a loop \texttt{break} in \texttt{IGA\_CMA}) is therefore dead under normal evaluation rather than a live safeguard. The remaining unreached lines are guards of the same kind. A non-positive-eigenvalue clamp in \texttt{OM\_CMA\_EIS}, whose $82.1\%$ branch coverage is the lowest of the four, and an odd-population-size correction whose branch the chosen dimensions never reach, since the population formula yields an even size at every $d \in \{5,10,20\}$. 
-
-A second class of inert content executes but changes nothing downstream, and so lies outside what coverage can measure. \texttt{BIPOP\_MA\_CMA\_ES} carries an unused \texttt{success\_history} list and, lacking any local-search procedure, leaves its ``MA'' (memetic) prefix decorative, while the budget accounting that normally drives BIPOP's regime selection is omitted. Several comments advertise techniques the source never implements. A named ``noise-resilient gradient estimation'' that is never coded, a ``PSA'' that is just standard CSA, and a ``Constraint-based scaling'' applied to a flat heuristic cap. The LLM-coined prefixes ``EES'', ``EIS'', and ``IGA'' are defined nowhere in the source. Because these passages are executed-but-inconsequential rather than unreached, they remain static observations that the coverage trace neither confirms nor refutes. The same holds for a correctness inconsistency in the same vein. The mirrored-and-orthogonalised sampling in \texttt{BIPOP\_MA\_CMA\_ES}, \texttt{CMA\_EES}, and \texttt{OM\_CMA\_EIS} breaks the Gaussian assumption that CSA's expected step-norm $\chi_n$ relies on, an inconsistency the code runs past without raising.
-
-Taken together, the trace shows that the winners' defensive scaffolding is largely dead, and the misnamed or unused passages, though executed, do no work. In both cases the algorithms' performance rests on the canonical CMA-ES core and the two or three live add-ons, not on the surface elaboration.
-
 \begin{table}[t]
 \centering
 \small
@@ -452,6 +452,34 @@ Taken together, the trace shows that the winners' defensive scaffolding is large
 \bottomrule
 \end{tabular}
 \end{table}
+
+\Cref{tab:phase4-winners} reports the best-found algorithm per condition, taken as the candidate with the highest final best-so-far AOCC across the 10 seeds. The four winners (\texttt{IGA\_CMA}, \texttt{BIPOP\_MA\_CMA\_ES}, \texttt{CMA\_EES}, and \texttt{OM\_CMA\_EIS}) span only a $0.0031$ AOCC range, are each between 95 and 115 lines of code, and have a maximum nesting depth of 6. The full source for all four is available in the project repository.\footnote{\url{https://github.com/Maxwe11h/thesis-experiments/tree/main/docs/stage4_winners}}
+
+All four winners are CMA-ES \cite{hansen2001cmaes} variants and contain the canonical CMA-ES mechanisms in full. These are log-decreasing recombination weights, the standard learning-rate constants $c_c, c_s, c_1, c_\mu$, $\text{damps}$, and $\chi_n$ verbatim, both evolution paths $p_c$ and $p_s$, the Heaviside $h_\sigma$ indicator, the rank-1 plus rank-$\mu$ covariance update, and CSA step-size control. None of the four replaces, simplifies, or fundamentally rederives this core. Each instead decorates it with two or three heuristic add-ons.
+
+Three add-ons recur. Mirrored sampling~\cite{mirrored2010} (antithetic $\pm z$ pairs to halve sampling noise on the mean shift) appears in all four winners. QR-decomposed orthogonal sampling also appears in all four, applied to a \texttt{randn} matrix and rescaled by $\sqrt{n}$ (low-dim-only in \texttt{BIPOP\_MA\_CMA\_ES}). Active CMA with negative rank-$\mu$ weights~\cite{active2006} appears in two of the four. \texttt{IGA\_CMA} uses a flat $-0.8$ negative coefficient, while \texttt{BIPOP\_MA\_CMA\_ES} caps it at $0.5\,c_\mu$. The conditions diverge on the remaining heuristic interventions.
+
+\begin{itemize}
+  \item \textbf{\texttt{IGA\_CMA} (vanilla)} wraps the inner CMA in an IPOP-style~\cite{ipop2005} restart loop that doubles the population size on collapse. A DE-style mean-injection step overrides $x_{\text{mean}}$ on stagnation. Biased re-initialisation draws the new mean near the running best with probability $0.3$.
+  \item \textbf{\texttt{BIPOP\_MA\_CMA\_ES} (neutral)} scaffolds BIPOP~\cite{bipop2009}, alternating between large- and small-population regimes on each restart. The budget accounting that normally selects the next regime is omitted. An unused \texttt{success\_history} list and the absence of any local-search procedure leave the ``MA'' (memetic) prefix decorative.
+  \item \textbf{\texttt{CMA\_EES} (SAGE)} adds edge-biased radial scaling on the orthogonal samples (a $\text{Beta}(0.5, 0.5)$ mixed into the $\chi$-scale). Modulo-reflective boundary handling bounces out-of-bounds points back into the interior. Restart fires only on near-total stagnation and is suppressed past $80\%$ of the FE budget.
+  \item \textbf{\texttt{OM\_CMA\_EIS} (combined)} injects a momentum term, formed as an exponential moving average of recent mean-shift directions, into each sample. There is no proper restart, only a $1.1\times$ sigma kick when the within-generation fitness range collapses.
+\end{itemize}
+
+\begin{figure*}[t]
+  \centering
+  \includegraphics[width=\textwidth]{figures/fig_phase4_fullsuite_ecdf.pdf}
+  \caption{Empirical attainment function on the $1{,}000$-instance MA-BBOB pool at $d \in \{5, 10, 20\}$, the fraction of (run, target) pairs attained by a given budget, over $5{,}000$ runs and 51 log-spaced targets in $[10^{-8}, 10^2]$. Top row full range, bottom row zoomed to $[0.6, 1]$. Dashed lines mark the two external baselines (CMA-ES, NADE).}
+  \label{fig:phase4-fullsuite-ecdf}
+\end{figure*}
+
+Beyond the deliberate add-ons, all four winners carry passages that contribute nothing to the search. To separate code that never runs from code that runs without effect, each winner was traced under branch-level coverage on a sample of MA-BBOB instances at the full $2{,}000d$ FE budget. \Cref{tab:winner-coverage} reports the fraction of statements and branches reached. Between $94.6\%$ and $99.0\%$ of statements execute, and the unreached remainder is concentrated in defensive guards that never fire.
+
+The clearest case is the eigendecomposition guard common to all four. Each wraps the covariance eigendecomposition in a \texttt{try}/\texttt{except} (a bare \texttt{except} in \texttt{IGA\_CMA} and \texttt{CMA\_EES}, \texttt{LinAlgError}/\texttt{ValueError} in \texttt{BIPOP\_MA\_CMA\_ES} and \texttt{OM\_CMA\_EIS}) and in every winner that handler executes zero times. The fallback each guard protects (identity covariance in \texttt{CMA\_EES} and \texttt{OM\_CMA\_EIS}, a parameter reset in \texttt{BIPOP\_MA\_CMA\_ES}, a loop \texttt{break} in \texttt{IGA\_CMA}) is therefore dead under normal evaluation rather than a live safeguard. The remaining unreached lines are guards of the same kind. A non-positive-eigenvalue clamp in \texttt{OM\_CMA\_EIS}, whose $82.1\%$ branch coverage is the lowest of the four, and an odd-population-size correction whose branch the chosen dimensions never reach, since the population formula yields an even size at every $d \in \{5,10,20\}$. 
+
+A second class of inert content executes but changes nothing downstream, and so lies outside what coverage can measure. \texttt{BIPOP\_MA\_CMA\_ES} carries an unused \texttt{success\_history} list and, lacking any local-search procedure, leaves its ``MA'' (memetic) prefix decorative, while the budget accounting that normally drives BIPOP's regime selection is omitted. Several comments advertise techniques the source never implements. A named ``noise-resilient gradient estimation'' that is never coded, a ``PSA'' that is just standard CSA, and a ``Constraint-based scaling'' applied to a flat heuristic cap. The LLM-coined prefixes ``EES'', ``EIS'', and ``IGA'' are defined nowhere in the source. Because these passages are executed-but-inconsequential rather than unreached, they remain static observations that the coverage trace neither confirms nor refutes. The same holds for a correctness inconsistency in the same vein. The mirrored-and-orthogonalised sampling in \texttt{BIPOP\_MA\_CMA\_ES}, \texttt{CMA\_EES}, and \texttt{OM\_CMA\_EIS} breaks the Gaussian assumption that CSA's expected step-norm $\chi_n$ relies on, an inconsistency the code runs past without raising.
+
+Taken together, the trace shows that the winners' defensive scaffolding is largely dead, and the misnamed or unused passages, though executed, do no work. In both cases the algorithms' performance rests on the canonical CMA-ES core and the two or three live add-ons, not on the surface elaboration.
 
 
 % ---------------------------------------------------------------------------
@@ -482,12 +510,5 @@ NADE~\cite{vanStein2025NeighborhoodDE} & 0.810 & 0.663 & 0.471 & \textbf{0.937} 
 \bottomrule
 \end{tabular}
 \end{table}
-
-\begin{figure*}[t]
-  \centering
-  \includegraphics[width=\textwidth]{figures/fig_phase4_fullsuite_ecdf.pdf}
-  \caption{Empirical attainment function on the $1{,}000$-instance MA-BBOB pool at $d \in \{5, 10, 20\}$, the fraction of (run, target) pairs attained by a given budget, over $5{,}000$ runs and 51 log-spaced targets in $[10^{-8}, 10^2]$. Top row full range, bottom row zoomed to $[0.6, 1]$. Dashed lines mark the two external baselines (CMA-ES, NADE).}
-  \label{fig:phase4-fullsuite-ecdf}
-\end{figure*}
 
 \Cref{tab:phase4-fullsuite-summary} reports both metrics per (algorithm, dimensionality). All four LLM-generated winners beat the generic CMA-ES baseline on both AOCC and final attainment at every dimensionality, and all degrade gracefully as dimension grows. At $d = 5$ the four winners are closely grouped on AOCC. \texttt{IGA\_CMA}, generated by vanilla feedback, leads at $0.848$. NADE has the lowest AOCC of the four-plus-NADE set at this dimension on the anytime metric ($0.810$, mid-pack) but the highest final attainment of any algorithm in the table ($0.937$), a gap of $0.13$ between its two metrics. At $d = 10$ the order changes. \texttt{BIPOP\_MA\_CMA\_ES}, generated by neutral behavioural feedback, leads the full table on both metrics ($0.810$ AOCC, $0.887$ final attainment). NADE's AOCC falls to $0.663$, below the generic CMA-ES ($0.701$), and its final attainment ($0.763$) drops below all four winners. At $d = 20$ \texttt{BIPOP\_MA\_CMA\_ES} again leads the table on both metrics ($0.745$ / $0.823$), with \texttt{IGA\_CMA} second on AOCC ($0.730$); \texttt{OM\_CMA\_EIS} and \texttt{CMA\_EES} fall to $0.704$ and $0.696$. NADE is last on both metrics ($0.471$ AOCC, $0.546$ final attainment).

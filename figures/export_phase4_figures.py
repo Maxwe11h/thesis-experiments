@@ -48,11 +48,13 @@ FIGURES_DIR.mkdir(parents=True, exist_ok=True)
 # ---------------------------------------------------------------------------
 # Style — matches figures/export_figures.py
 # ---------------------------------------------------------------------------
-FONT_SIZE_BASE = 11
-FONT_SIZE_TITLE = 13
-FONT_SIZE_LABEL = 12
-FONT_SIZE_TICK = 10
-FONT_SIZE_LEGEND = 9
+# See export_figures.py for the rationale: fonts kept modest so plotted data
+# dominates and text lands at ~7-8pt after LaTeX scales the figure to column width.
+FONT_SIZE_BASE = 8
+FONT_SIZE_TITLE = 9
+FONT_SIZE_LABEL = 8.5
+FONT_SIZE_TICK = 7
+FONT_SIZE_LEGEND = 7
 
 plt.rcParams.update({
     "figure.figsize": (12, 6),
@@ -69,10 +71,16 @@ plt.rcParams.update({
     "savefig.pad_inches": 0.05,
     "axes.spines.top": True,
     "axes.spines.right": True,
-    "axes.linewidth": 1.5,
+    "axes.linewidth": 0.8,
     "axes.grid": False,
 })
 SAVEFIG_KW = dict(bbox_inches="tight", dpi=300)
+
+def _grid(ax, axis="both"):
+    """Light dotted reference grid drawn behind the data."""
+    ax.set_axisbelow(True)
+    ax.grid(True, axis=axis, which="major", linestyle=":",
+            linewidth=0.6, color="#cccccc", alpha=0.9)
 STAT_BOX = dict(boxstyle="round", facecolor="#f0f0f0", alpha=0.8,
                 edgecolor="#cccccc")
 
@@ -218,7 +226,8 @@ def fig_final_aocc(df: pd.DataFrame) -> None:
     colors = [COND_COLORS[c] for c in CONDITIONS]
     labels = [COND_LABELS[c] for c in CONDITIONS]
 
-    fig, ax = plt.subplots(figsize=(8, 5))
+    fig, ax = plt.subplots(figsize=(3.6, 2.8))
+    _grid(ax, "y")
     _styled_boxplot(ax, groups, labels, colors)
     _strip_overlay(ax, groups, colors)
 
@@ -276,7 +285,7 @@ def fig_convergence(df: pd.DataFrame) -> None:
                     color=COND_COLORS[c], linewidth=1.5)
             ax.fill_between(x, mean - std, mean + std,
                             color=COND_COLORS[c], alpha=0.15, linewidth=0)
-        ax.set_xlabel("Candidate generation")
+        ax.set_xlabel("Candidate evaluation")
         ax.set_ylabel("Best-so-far AOCC")
         ax.set_title(title, fontweight="bold")
         if ylim is not None:
@@ -285,7 +294,7 @@ def fig_convergence(df: pd.DataFrame) -> None:
                 color="#cccccc", alpha=0.9)
         ax.set_axisbelow(True)
 
-    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(15, 5))
+    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(9.5, 3.3))
     _draw(ax1, ylim=None, title="(a) AOCC convergence curve")
     _draw(ax2, ylim=(0.75, 1.0), title="(b) Zoomed to 0.75 - 1.0")
 
@@ -321,7 +330,7 @@ def fig_per_instance(pi: pd.DataFrame, summary: pd.DataFrame) -> None:
     matrix = (merged.groupby(["condition", "instance"])["aocc"].mean()
               .unstack().loc[CONDITIONS, TRAINING_INSTANCES])
 
-    fig, ax = plt.subplots(figsize=(14, 3.6))
+    fig, ax = plt.subplots(figsize=(9.5, 2.5))
     im = ax.imshow(matrix.values, aspect="auto", cmap="viridis",
                    vmin=np.nanmin(matrix.values), vmax=1.0)
     ax.set_xticks(range(len(TRAINING_INSTANCES)))
@@ -344,7 +353,7 @@ def fig_per_instance(pi: pd.DataFrame, summary: pd.DataFrame) -> None:
             if np.isfinite(v):
                 is_winner = winners[j] == i
                 ax.text(j, i, f"{v:.3f}", ha="center", va="center",
-                        fontsize=8,
+                        fontsize=7,
                         fontweight="bold" if is_winner else "normal",
                         color="white" if v < 0.85 else "#222222")
 
@@ -411,12 +420,13 @@ def fig_failure_by_gen(df: pd.DataFrame) -> None:
             .assign(rate=lambda x: 100 * x["fail"] / x["n"])
             .reset_index())
 
-    fig, ax = plt.subplots(figsize=(9, 4.5))
+    fig, ax = plt.subplots(figsize=(4.6, 2.8))
+    _grid(ax, "both")
     for c in CONDITIONS:
         sub = rate[rate.condition == c]
         ax.plot(sub.gen_bin, sub.rate, linewidth=1.5,
                 color=COND_COLORS[c], label=COND_LABELS[c])
-    ax.set_xlabel("Candidate generation (bin of 100)")
+    ax.set_xlabel("Candidate evaluation (bin of 100)")
     ax.set_ylabel("Failure rate (%)")
     ax.set_title("Failure rate over time, by condition",
                  fontweight="bold")
@@ -457,16 +467,18 @@ def fig_failure_modes_stacked() -> None:
     cat_colors = [FAILURE_CATEGORY_COLORS[c] for c in cats_present]
     counts = counts.rename(columns=FAILURE_CATEGORY_LABELS)
 
-    fig, ax = plt.subplots(figsize=(9, 5))
+    fig, ax = plt.subplots(figsize=(4.6, 3.4))
     counts.plot(kind="bar", stacked=True, ax=ax,
                 color=cat_colors, edgecolor="none", linewidth=0)
+    _grid(ax, "y")  # after pandas .plot(), which otherwise resets the grid
 
     ax.set_xticklabels([COND_LABELS[c] for c in CONDITIONS], rotation=0)
     ax.set_xlabel("")
     ax.set_ylabel("Number of Failures")
     ax.set_title("Failure Categories per Condition (all seeds pooled)",
                  fontweight="bold")
-    ax.legend(loc="upper right", fontsize=FONT_SIZE_LEGEND)
+    ax.legend(loc="upper center", bbox_to_anchor=(0.5, -0.16), ncol=3,
+              fontsize=FONT_SIZE_LEGEND, frameon=False)
 
     fig.tight_layout()
     out = FIGURES_DIR / "fig_phase4_failure_modes.pdf"
@@ -495,7 +507,7 @@ def fig_failure_cumulative(df: pd.DataFrame) -> None:
         ax.plot(per_gen["generation"], per_gen["cum_rate"],
                 color=COND_COLORS[c], linewidth=1.5, label=COND_LABELS[c])
 
-    ax.set_xlabel("Candidate generation")
+    ax.set_xlabel("Candidate evaluation")
     ax.set_ylabel("Cumulative failure rate (%)")
     ax.set_title("Cumulative failure rate by condition", fontweight="bold")
     ax.set_xlim(0, BUDGET)

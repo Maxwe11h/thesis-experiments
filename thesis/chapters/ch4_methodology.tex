@@ -245,29 +245,6 @@ Each condition runs for 100 candidates across 5 independent seeds, for a total o
   \label{fig:model-screening}
 \end{figure*}
 
-\begin{table}[t]
-\centering
-\caption{Stage~1 model ranking (100 candidates $\times$ 5 seeds, vanilla feedback). Fail\% and AOCC averaged across seeds ($\pm$ std).}
-\label{tab:model-ranking}
-\footnotesize
-\begin{tabular}{@{}rlrrr@{}}
-\toprule
-\textbf{\#} & \textbf{Model} & \textbf{Fail\%} & \textbf{AOCC} & \textbf{h/run} \\
-\midrule
-1  & Gem.~3 Pro    & 10.2  & .885$\pm$.011 & 5.1 \\
-2  & Gem.~3 Flash  & \textbf{2.0} & .862$\pm$.108 & 3.9 \\
-3  & Qwen3.5 27B   & 41.0  & .817$\pm$.009 & 38.9 \\
-4  & OLMo~3 32B    & 13.2  & .690$\pm$.109 & 39.3 \\
-5  & OLMo~3 7B     & 27.6  & .657$\pm$.160 & 18.4 \\
-6  & Devstral~2    & 32.6  & .625$\pm$.222 & 5.0 \\
-7  & Granite~4 3B  & 53.8  & .569$\pm$.087 & \textbf{0.6} \\
-8  & Qwen3.5 4B    & 76.2  & .492$\pm$.209 & 7.9 \\
-9  & Qwen3.5 9B    & 91.6  & .373$\pm$.127 & 3.0 \\
-10 & RNJ-1 8B      & 34.6  & .254$\pm$.037 & 14.5 \\
-\bottomrule
-\end{tabular}
-\end{table}
-
 Stage~4 is a head-to-head comparison of four feedback conditions, run on the twenty-function MA-BBOB set with longer evolutionary runs and more independent seeds than the screening stages so condition differences can be detected at the resolution required to draw substantive conclusions.
 
 The vanilla condition uses AOCC-only feedback, identical to the baseline used in Stage~1, repeated here on the new function set as the reference point against which all other conditions are measured. The neutral condition extends AOCC with trajectory-derived behavioural features, isolating the contribution of distal (behavioural) feedback. The sage condition pairs AOCC with structural code-level guidance from LLaMEA-SAGE~\cite{vanStein2026LLaMEASAGE}, used unmodified, isolating the contribution of proximal (structural) feedback. The combined condition appends both behavioural and structural feedback in the same prompt, testing whether the two channels are complementary or redundant.
@@ -282,4 +259,4 @@ Finally, to assess how the strongest generated algorithms generalise beyond the 
 \section{Infrastructure}
 \label{sec:meth-infrastructure}
 
-All experiments are executed on the LIACS SLURM cluster node \textbf{saronite}, equipped with 4$\times$ NVIDIA L40S GPUs (48\,GB each), 2$\times$ 32-core Intel Xeon Gold 6438M CPUs, and 512\,GB RAM. Most local models are served via Ollama~\cite{ollama}, which processes requests sequentially in a queue. For Qwen3.5~9B and Granite~4~Micro, we use vLLM~\cite{kwon2023vllm}, which supports continuous batching and manages KV caches efficiently via PagedAttention~\cite{kwon2023vllm}. This allows multiple seeds to issue concurrent inference requests rather than waiting in a serial queue, reducing wall-clock time per evolutionary run. Gemini~3 models~\cite{gemini3pro, gemini3flash} are accessed through Google's Gemini API. All code, configuration, and analysis notebooks are available in the thesis repository.\footnote{\url{https://github.com/maxharell/thesis}} The BLADE~\cite{vanStein2025BLADE} and LLaMEA~\cite{vanStein2024LLaMEA} repositories are included as Git submodules, with minor modifications to support custom feedback strings and extended behavioural metric logging.
+All experiments are executed on the LIACS SLURM cluster node \textbf{saronite}, equipped with 4$\times$ NVIDIA L40S GPUs (48\,GB each), 2$\times$ 32-core Intel Xeon Gold 6438M CPUs, and 512\,GB RAM. Most local models are served via Ollama~\cite{ollama}, which processes requests sequentially in a queue. For Qwen3.5~9B and Granite~4~Micro, we use vLLM~\cite{kwon2023vllm}, which supports continuous batching and manages KV caches efficiently via PagedAttention~\cite{kwon2023vllm}. This allows multiple seeds to issue concurrent inference requests rather than waiting in a serial queue, reducing wall-clock time per evolutionary run. Gemini~3 models~\cite{gemini3pro, gemini3flash} are accessed through Google's Gemini API. All code, configuration, and analysis notebooks are available in the thesis repository.\footnote{\url{https://github.com/Maxwe11h/thesis-experiments}} The BLADE~\cite{vanStein2025BLADE} and LLaMEA~\cite{vanStein2024LLaMEA} repositories are included as Git submodules, with minor modifications to support custom feedback strings and extended behavioural metric logging.

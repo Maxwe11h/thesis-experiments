@@ -78,6 +78,18 @@
 \usepackage{enumitem}
 \setlist{nosep,leftmargin=1.5em}
 
+% ---------- Float placement ----------
+% Default fractions are restrictive (textfraction 0.2, topfraction 0.7), which
+% forces tall figures in float-heavy sections to leave large gaps. Relax them so
+% LaTeX packs floats and text into the same column and fills it.
+\renewcommand{\topfraction}{0.9}
+\renewcommand{\bottomfraction}{0.8}
+\renewcommand{\textfraction}{0.07}
+\renewcommand{\floatpagefraction}{0.75}
+\setcounter{topnumber}{4}
+\setcounter{bottomnumber}{4}
+\setcounter{totalnumber}{6}
+
 % ---------- Section numbering ----------
 \setcounter{secnumdepth}{3}
 
@@ -87,35 +99,28 @@
 \let\subsection\subsubsection
 \let\subsubsection\paragraph
 
+% ---------- Official LIACS title page metadata ----------
+\input{titlepage}
+\title{Beyond Scalar Fitness:\\ Behavioural Feedback for LLM-Driven\\ Metaheuristic Evolution}
+\author{Max Harell}
+\studentnumber{s3815129}
+\date{\today}
+\supervisor{Dr.\ Niki van Stein}
+\secondsupervisor{Dr.\ Thomas B\"{a}ck}
+\thesistype{Bachelor Thesis}
+\studyprogram{Data Science and Artificial Intelligence}
+
 % ==========================================================================
 \begin{document}
 
-% ---------- Title block ----------
-\twocolumn[{%
-\begin{center}
-\vspace*{0.2cm}
-{\LARGE\bfseries Beyond Scalar Fitness:\\[0.3em]
-Behavioural Feedback for LLM-Driven\\Metaheuristic Evolution\par}
-\vspace{0.7cm}
-{\large Max Harell\par}
-\vspace{0.15cm}
-{\small LIACS, Leiden University, The Netherlands\par}
-\vspace{0.5cm}
-{\small Bachelor Thesis in Computer Science\par}
-{\small Supervised by Dr.\ Niki van Stein\par}
-\vspace{0.15cm}
-{\small \today\par}
-\vspace{0.6cm}
-\end{center}
+% ---------- Official LIACS title page ----------
+\maketitle
 
-\begin{center}
-\begin{minipage}{0.92\textwidth}
-\small
-\noindent\textbf{Abstract.}\quad The LLaMEA framework embeds a large language model in an evolutionary loop to generate optimisation algorithms, with the Area Over the Convergence Curve (AOCC), a single scalar value, as its only feedback signal. Recent work has shown that augmenting feedback with structural features extracted from the algorithm's source code improves performance, but the analogous question for \emph{behavioural} features (descriptors of the search trajectory the algorithm produces when it runs) has remained open. This thesis addresses that question through a four-stage pipeline. Stage one screens ten LLMs and identifies Gemini 3 Flash as the strongest combination of quality, reliability, and cost. Stage two reduces a 32-feature behavioural vocabulary to a tractable subset of ten via tri-criterion consensus. Stage three compares neutral, directional, and comparative framings of each behavioural feature on Gemini 3 Flash across 29 conditions. Stage four is a head-to-head full-benchmark comparison of behavioural, structural (LLaMEA-SAGE), and combined feedback against vanilla AOCC-only on a 20-function MA-BBOB set with 10 seeds per condition. We find that neutral framing of behavioural features, reporting the feature value without prescriptive advice, consistently outperforms the prescriptive variants, and that prescriptive feedback steers the median feature value in the advised direction in only 37\% of cases despite empirically grounded advice. On the stage four benchmark, all three feedback-augmented conditions outperform vanilla LLaMEA with the decisive effect being variance reduction. Combined behavioural and structural feedback shrinks seed-to-seed standard deviation by roughly a factor of five (Levene $p = 0.030$, the only Stage~4 contrast to clear $\alpha = 0.05$), and the three feedback conditions split 19 of 20 leaderboard wins between them. Re-evaluated on the full $1{,}000$-instance MA-BBOB pool, all four LLM-generated winning algorithms outperform a CMA-ES baseline across $d \in \{5, 10, 20\}$. Trajectory-based behavioural feedback does guide LLMs to design better optimisation algorithms, but the improvement manifests primarily as reduced failure-mode variance rather than as a large mean performance lift.
-\end{minipage}
-\end{center}
-\vspace{0.6cm}
-}]
+% ---------- Abstract (numbered as Section 0) ----------
+\setcounter{page}{1}
+\setcounter{section}{-1}
+\chapter{Abstract}
+The LLaMEA framework embeds a large language model in an evolutionary loop to generate optimisation algorithms, with the Area Over the Convergence Curve (AOCC), a single scalar value, as its only feedback signal. Recent work has shown that augmenting feedback with structural features extracted from the algorithm's source code improves performance, but the analogous question for \emph{behavioural} features (descriptors of the search trajectory the algorithm produces when it runs) has remained open. This thesis addresses that question through a four-stage pipeline. Stage one screens ten LLMs and identifies Gemini 3 Flash as the strongest combination of quality, reliability, and cost. Stage two reduces a 32-feature behavioural vocabulary to a tractable subset of ten via tri-criterion consensus. Stage three compares neutral, directional, and comparative framings of each behavioural feature on Gemini 3 Flash across 29 conditions. Stage four is a head-to-head full-benchmark comparison of behavioural, structural (LLaMEA-SAGE), and combined feedback against vanilla AOCC-only on a 20-function MA-BBOB set with 10 seeds per condition. We find that neutral framing of behavioural features, reporting the feature value without prescriptive advice, consistently outperforms the prescriptive variants, and that prescriptive feedback steers the median feature value in the advised direction in only 37\% of cases despite empirically grounded advice. On the stage four benchmark, all three feedback-augmented conditions outperform vanilla LLaMEA with the decisive effect being variance reduction. Combined behavioural and structural feedback shrinks seed-to-seed standard deviation by roughly a factor of five (Levene $p = 0.030$, the only Stage~4 contrast to clear $\alpha = 0.05$), and the three feedback conditions split 19 of 20 leaderboard wins between them. Re-evaluated on the full $1{,}000$-instance MA-BBOB pool, all four LLM-generated winning algorithms outperform a CMA-ES baseline across $d \in \{5, 10, 20\}$. Trajectory-based behavioural feedback does guide LLMs to design better optimisation algorithms, but the improvement manifests primarily as reduced failure-mode variance rather than as a large mean performance lift.
 
 % ---------- Content ----------
 \input{chapters/ch1_introduction}
