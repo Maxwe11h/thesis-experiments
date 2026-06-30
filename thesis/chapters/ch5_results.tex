@@ -72,7 +72,7 @@ The five categories are distributed unevenly across models. Runtime errors are t
 \label{sec:results-model-selection}
 
 
-Gemini~3 Flash is selected for later stages based on its combination of competitive AOCC ($0.862$), lowest failure rate ($2.0\%$), and fast inference ($3.9$\,h/run). Its vanilla performance across 5 seeds ($0.862 \pm 0.097$) serves as the baseline for all Stage~3 comparisons.
+Gemini~3 Flash is selected for later stages based on its combination of competitive AOCC ($0.862$), lowest failure rate ($2.0\%$), and fast inference ($3.9$\,h/run). Its vanilla performance across 5 seeds ($0.862 \pm 0.108$) serves as the baseline for all Stage~3 comparisons.
 
 % ===========================================================================
 \section{Feature Analysis and Selection}
@@ -237,13 +237,13 @@ The Stage~3 dataset contains $14{,}127$ valid candidates produced by Gemini~3 Fl
 \subsection{Format Ranking}
 \label{sec:results-format-ordering}
 
-\Cref{fig:condition-ranking} ranks all 29 conditions by mean best AOCC alongside the vanilla baseline. The top four conditions are all neutral format. To test whether the format ordering reflects a difference rather than sampling noise, we apply the Kruskal--Wallis test~\cite{kruskal1952ranks}, a non-parametric alternative to one-way ANOVA that compares the rank distributions of independent groups without assuming normality. The test treats the per-(format, feature) mean AOCCs as independent samples within each format. The test returns $H = 11.5$, $p = 0.003$ for differences among formats, with neutral achieving a mean AOCC of $0.855$, directional $0.827$, and comparative $0.784$. The AOCC columns in \cref{tab:steering-detail} show this pattern per feature, with the best format highlighted in bold. Neutral produces the best AOCC for 6 of 10 features, directional for 3, and comparative for 1. Neutral conditions also have the highest failure rate at $3.5\%$ compared to $2.6\%$ for directional and $1.5\%$ for comparative.
+\Cref{fig:condition-ranking} ranks all 29 conditions by mean best AOCC alongside the vanilla baseline. The top four conditions are all neutral format. To test whether the format ordering reflects a difference rather than sampling noise, we apply the Kruskal--Wallis test~\cite{kruskal1952ranks}, a non-parametric alternative to one-way ANOVA that compares the rank distributions of independent groups without assuming normality. The test treats the per-(format, feature) mean AOCCs as independent samples within each format. The test returns $H = 9.25$, $p = 0.010$ for differences among formats, with neutral achieving a mean AOCC of $0.855$, directional $0.827$, and comparative $0.784$. The AOCC columns in \cref{tab:steering-detail} show this pattern per feature, with the best format highlighted in bold. Neutral produces the best AOCC for 6 of 10 features, directional for 3, and comparative for 1. Neutral conditions also have the highest failure rate at $3.5\%$ compared to $2.6\%$ for directional and $1.5\%$ for comparative.
 
 Six conditions exceed the vanilla baseline AOCC of $0.862$. Four are neutral (\texttt{intensification\_ratio}, \texttt{dim\_conv\_heterogeneity}, \texttt{plateau\_fraction}, \texttt{avg\_improvement}) and two are directional (\texttt{plateau\_fraction}, \texttt{avg\_improvement}), with \texttt{neutral-intensification\_ratio} at $0.907 \pm 0.021$ the best. None of these reach statistical significance against vanilla under Mann--Whitney $U$ at the 5-seed budget.
 
 \begin{table*}[!t]
 \centering
-\caption{Feature--AOCC relationship shift from Stage~1 (all models, $n{=}3{,}086$) to Stage~3 (Gemini Flash only, $n{=}14{,}127$). Tier columns show median feature values for bottom-25\% and top-10\% algorithms by AOCC in each stage.}
+\caption{Feature--AOCC relationship shift from Stage~1 (all models, $n{=}3{,}071$) to Stage~3 (Gemini Flash only, $n{=}14{,}127$). Tier columns show median feature values for bottom-25\% and top-10\% algorithms by AOCC in each stage.}
 \label{tab:correlation-shift}
 \footnotesize
 \begin{tabular}{@{}l|rrrr|rrrr|l@{}}

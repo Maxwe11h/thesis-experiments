@@ -476,7 +476,7 @@ _FEAT_CATEGORIES = {
     "Early/Late Dynamics": [
         "x_spread_early", "x_spread_late", "spread_ratio", "centroid_drift",
         "f_range_early", "f_range_late", "f_range_ratio"],
-    "Novel Features": [
+    "Newly introduced": [
         "improvement_spatial_correlation", "improvement_burstiness",
         "dimension_convergence_heterogeneity", "step_size_autocorrelation",
         "fitness_plateau_fraction", "half_convergence_time"],
@@ -485,7 +485,7 @@ _CAT_COLORS = {
     "Exploration & Diversity": "#4e79a7", "Exploitation": "#f28e2b",
     "Convergence": "#59a14f", "Stagnation": "#e15759",
     "Step-Size & Movement": "#b07aa1", "Information-Theoretic": "#9c755f",
-    "Early/Late Dynamics": "#ff9da7", "Novel Features": "#76b7b2",
+    "Early/Late Dynamics": "#ff9da7", "Newly introduced": "#76b7b2",
 }
 _FEAT_TO_CAT = {}
 for _cat, _feats in _FEAT_CATEGORIES.items():
@@ -807,7 +807,7 @@ def fig_spearman_heatmap(df):
             "x_spread_early", "x_spread_late", "spread_ratio", "centroid_drift",
             "f_range_early", "f_range_late", "f_range_ratio",
         ],
-        "Novel Features": [
+        "Newly introduced": [
             "improvement_spatial_correlation", "improvement_burstiness",
             "dimension_convergence_heterogeneity", "step_size_autocorrelation",
             "fitness_plateau_fraction", "half_convergence_time",
@@ -821,7 +821,7 @@ def fig_spearman_heatmap(df):
         "Step-Size & Movement": "#b07aa1",
         "Information-Theoretic": "#9c755f",
         "Early/Late Dynamics": "#ff9da7",
-        "Novel Features": "#76b7b2",
+        "Newly introduced": "#76b7b2",
     }
     feat_to_cat = {}
     for cat, feats in FEATURE_CATEGORIES.items():
@@ -962,8 +962,14 @@ def fig_format_boxplot(df3):
 # Figure 6: Condition Ranking (Phase 3)
 # ===================================================================
 
-def fig_condition_ranking(df3, best):
-    """Horizontal bar chart of all 29 conditions ranked by mean best AOCC."""
+def fig_condition_ranking(df3, best, top_n=None):
+    """Horizontal bar chart of conditions ranked by mean best AOCC.
+
+    By default all 29 conditions are shown. If ``top_n`` is given, only the
+    top-N conditions are plotted (the vanilla baseline is still drawn as a
+    reference bar/line) and the output is written to a separate file so the
+    full ranking figure is left untouched.
+    """
     fail_per_seed = df3.groupby(["condition", "format", "feature", "seed"])["failed"].mean().reset_index()
     fail_per_seed.columns = ["condition", "format", "feature", "seed", "failure_rate"]
 
@@ -976,9 +982,13 @@ def fig_condition_ranking(df3, best):
     cond_summary = cond_summary.merge(fail_agg, on="condition")
     cond_summary = cond_summary.sort_values("aocc_mean", ascending=False).reset_index(drop=True)
 
+    if top_n is not None:
+        cond_summary = cond_summary.head(top_n).reset_index(drop=True)
+
     # Insert vanilla baseline as a grey bar at the top
     n_conds = len(cond_summary)
-    fig, ax = plt.subplots(figsize=(3.6, 5.0))
+    fig_height = 5.0 if top_n is None else max(2.6, 0.30 * (n_conds + 1) + 0.7)
+    fig, ax = plt.subplots(figsize=(3.6, fig_height))
     _grid(ax, "x")
     # Add vanilla as position 0
     y_pos = np.arange(n_conds + 1)
@@ -999,8 +1009,9 @@ def fig_condition_ranking(df3, best):
     ax.set_yticklabels(all_labels, fontsize=7.5)
     ax.tick_params(axis="x", labelsize=7.5)
     ax.set_xlabel("Mean Best AOCC", fontsize=8.5)
-    ax.set_title("All 29 Conditions Ranked by Mean Best AOCC",
-                 fontsize=7.5, fontweight="bold")
+    title = ("All 29 Conditions Ranked by Mean Best AOCC" if top_n is None
+             else f"Top {n_conds} Conditions Ranked by Mean Best AOCC")
+    ax.set_title(title, fontsize=7.5, fontweight="bold")
     ax.invert_yaxis()
 
     # Vertical dashed line at vanilla baseline (no text label)
@@ -1014,7 +1025,9 @@ def fig_condition_ranking(df3, best):
               ncol=4, fontsize=6.5, frameon=False, columnspacing=1.2,
               handlelength=1.1, handletextpad=0.4, borderaxespad=0.0)
 
-    outpath = FIGURES_DIR / "fig_condition_ranking.pdf"
+    fname = ("fig_condition_ranking.pdf" if top_n is None
+             else f"fig_condition_ranking_top{top_n}.pdf")
+    outpath = FIGURES_DIR / fname
     fig.savefig(outpath, **SAVEFIG_KW)
     plt.close(fig)
     print(f"  Saved {outpath.name}")
